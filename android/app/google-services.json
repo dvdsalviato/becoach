@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "81792174065",
+    "project_id": "becoach-df114",
+    "storage_bucket": "becoach-df114.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:81792174065:android:394be3f93920699926e650",
+        "android_client_info": {
+          "package_name": "com.dvdsalviato.becoach"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "81792174065-9mtprai6431r6f6j1rqfktgqov180f4g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dvdsalviato.becoach",
+            "certificate_hash": "6a64ae5a94a8cc30454cc034ab153b2b53ff2bf2"
+          }
+        },
+        {
+          "client_id": "81792174065-i7eo24g1g01ik4f3rh08fn4hdijqtd71.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLC2h61x6RzIyQmAnMa5B6VRAt4qyu5ek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "81792174065-i7eo24g1g01ik4f3rh08fn4hdijqtd71.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
