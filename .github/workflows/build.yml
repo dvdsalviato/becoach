@@ -41,19 +41,22 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/becoach.p12
-          {
-            echo "storeFile=becoach.p12"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > android/key.properties
+          ls -l android/app/becoach.p12
+          if keytool -list -keystore android/app/becoach.p12 -storetype PKCS12 -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" > /dev/null; then
+            echo "Keystore e password OK"
+          else
+            echo "::error::La password del keystore (secret KEYSTORE_PASSWORD) o l'alias (KEY_ALIAS) non corrispondono al file becoach.p12"
+            exit 1
+          fi
 
       - run: flutter pub get
 
       - name: Build
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: flutter build apk --release --build-number=${{ github.run_number }}
 
       - name: Rinomina APK

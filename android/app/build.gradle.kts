@@ -1,6 +1,3 @@
-import java.io.FileInputStream
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -8,16 +5,17 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-}
+// Firma: la password arriva dalle variabili d'ambiente di GitHub Actions,
+// così qualsiasi carattere speciale viene letto senza modifiche.
+val ksPassword: String? = System.getenv("KEYSTORE_PASSWORD")
+val ksAlias: String = System.getenv("KEY_ALIAS") ?: "becoach"
+val ksFile = file("becoach.p12")
+val canSign = ksPassword != null && ksFile.exists()
 
 android {
     namespace = "com.dvdsalviato.becoach"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -39,11 +37,11 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+            if (canSign) {
+                storeFile = ksFile
+                storePassword = ksPassword
+                keyAlias = ksAlias
+                keyPassword = ksPassword
                 storeType = "pkcs12"
             }
         }
@@ -51,7 +49,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists())
+            signingConfig = if (canSign)
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
