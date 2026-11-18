@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'models.dart';
 
@@ -14,6 +15,30 @@ class Db {
   static CollectionReference<Map<String, dynamic>> get coachVideos => fs.collection('coachVideos');
 
   static String get uid => FirebaseAuth.instance.currentUser!.uid;
+
+  // ---------- Accesso ----------
+
+  static final GoogleSignIn _google = GoogleSignIn(scopes: ['email']);
+
+  /// Accesso con Google. Restituisce false se l'utente annulla.
+  static Future<bool> signInWithGoogle() async {
+    final account = await _google.signIn();
+    if (account == null) return false;
+    final auth = await account.authentication;
+    final cred = GoogleAuthProvider.credential(
+      accessToken: auth.accessToken,
+      idToken: auth.idToken,
+    );
+    await FirebaseAuth.instance.signInWithCredential(cred);
+    return true;
+  }
+
+  static Future<void> signOut() async {
+    try {
+      await _google.signOut();
+    } catch (_) {}
+    await FirebaseAuth.instance.signOut();
+  }
 
   // ---------- Utenti ----------
 

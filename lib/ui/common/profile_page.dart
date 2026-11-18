@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -205,7 +204,7 @@ class _ProfilePageState extends State<ProfilePage> {
           OutlinedButton.icon(
             onPressed: () async {
               if (await confirm(context, 'Esci', 'Vuoi uscire dall\'account?', ok: 'Esci')) {
-                await FirebaseAuth.instance.signOut();
+                await Db.signOut();
               }
             },
             icon: const Icon(Icons.logout, size: 18),
@@ -213,7 +212,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 12),
           const Center(
-            child: Text('BeCoach 1.0', style: TextStyle(color: BC.disabled, fontSize: 12)),
+            child: Text('BeCoach 1.0.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
           ),
         ],
       ),

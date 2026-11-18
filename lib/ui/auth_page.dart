@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../db.dart';
 import '../theme.dart';
 import 'common/widgets.dart';
 
@@ -41,6 +42,10 @@ class _AuthPageState extends State<AuthPage> {
         return 'Password troppo debole (almeno 6 caratteri)';
       case 'network-request-failed':
         return 'Nessuna connessione';
+      case 'operation-not-allowed':
+        return 'Questo metodo di accesso non è attivo su Firebase';
+      case 'account-exists-with-different-credential':
+        return 'Questa email è già registrata con un altro metodo: accedi con email e password';
       default:
         return e.message ?? 'Errore (${e.code})';
     }
@@ -69,6 +74,22 @@ class _AuthPageState extends State<AuthPage> {
       if (mounted) setState(() => _error = _msg(e));
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _google() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Db.signInWithGoogle();
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _error = _msg(e));
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Accesso con Google non riuscito: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -124,6 +145,28 @@ class _AuthPageState extends State<AuthPage> {
                   const Text('Coach e allenati, nella stessa app.',
                       style: TextStyle(color: BC.muted, fontSize: 14)),
                   const SizedBox(height: 24),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _google,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 50),
+                      backgroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.account_circle_outlined, size: 22),
+                    label: const Text('Continua con Google'),
+                  ),
+                  const SizedBox(height: 18),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider(color: BC.border)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('oppure con email',
+                            style: TextStyle(color: BC.muted, fontSize: 13)),
+                      ),
+                      Expanded(child: Divider(color: BC.border)),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
                   if (_register) ...[
                     TextField(
                       controller: _name,

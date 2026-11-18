@@ -78,7 +78,7 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
       appBar: AppBar(
         actions: [
           TextButton(
-            onPressed: () => FirebaseAuth.instance.signOut(),
+            onPressed: () => Db.signOut(),
             child: const Text('Esci', style: TextStyle(color: BC.muted)),
           ),
         ],
