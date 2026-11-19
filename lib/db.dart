@@ -494,7 +494,7 @@ class Db {
       requestsRef(r.coachId).add(r.toMap()..['createdAt'] = FieldValue.serverTimestamp());
 
   static Future<void> updateRequest(AppointmentRequest r, Map<String, dynamic> data) =>
-      requestsRef(r.coachId).doc(r.id).update(data);
+      requestsRef(r.coachId).doc(r.id).update({...data, 'updatedAt': FieldValue.serverTimestamp()});
 
   static Future<void> deleteRequest(AppointmentRequest r) => requestsRef(r.coachId).doc(r.id).delete();
 

@@ -78,15 +78,3 @@ jobs:
             --title "BeCoach ${VERSION} (build ${{ github.run_number }})" \
             --notes-file WHATSNEW.md
 
-      - name: Pubblica sul repo pubblico (aggiornamenti dentro l'app)
-        env:
-          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "Secret PUBLIC_RELEASE_TOKEN non impostato: salto la pubblicazione pubblica"
-            exit 0
-          fi
-          gh release create "v${VERSION}-${{ github.run_number }}" BeCoach-*.apk \
-            -R dvdsalviato/becoach-download \
-            --title "BeCoach ${VERSION} (build ${{ github.run_number }})" \
-            --notes-file WHATSNEW.md

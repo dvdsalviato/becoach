@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'db.dart';
 import 'models.dart';
+import 'notifications.dart';
 import 'theme.dart';
 import 'ui/athlete/athlete_shell.dart';
 import 'ui/auth_page.dart';
@@ -16,6 +17,9 @@ import 'ui/role_setup_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  try {
+    await Notifs.init();
+  } catch (_) {}
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,

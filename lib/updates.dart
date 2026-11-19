@@ -7,8 +7,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'theme.dart';
 import 'ui/common/widgets.dart';
 
-/// Repo pubblico dove la build pubblica l'APK, così l'app può scaricarlo.
-const publicReleasesRepo = 'dvdsalviato/becoach-download';
+/// Repo pubblico con le release: l'app controlla qui se c'è una versione nuova.
+const publicReleasesRepo = 'dvdsalviato/becoach';
 
 class UpdateInfo {
   final String version;

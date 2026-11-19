@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../notifications.dart';
 import '../../updates.dart';
 import '../common/back_handler.dart';
 import '../common/profile_page.dart';
@@ -26,6 +27,7 @@ class _CoachShellState extends State<CoachShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) Updates.checkOnStart(context);
+      Notifs.setup().then((_) => backgroundCheck());
     });
   }
 

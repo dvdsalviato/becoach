@@ -9,6 +9,7 @@ import '../../data/exercise_library.dart';
 
 import '../../db.dart';
 import '../../models.dart';
+import '../../notifications.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../common/exercise_animation.dart';
@@ -25,7 +26,7 @@ class WorkoutPage extends StatefulWidget {
   State<WorkoutPage> createState() => _WorkoutPageState();
 }
 
-class _WorkoutPageState extends State<WorkoutPage> {
+class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
   Session? _s;
   Object? _error;
   bool _reorder = false;
@@ -46,7 +47,34 @@ class _WorkoutPageState extends State<WorkoutPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  /// Con l'app in secondo piano o lo schermo spento il timer avvisa con una notifica.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final end = _timerEnd;
+    if (state == AppLifecycleState.resumed) {
+      Notifs.cancelTimer();
+    } else if (state == AppLifecycleState.paused && end != null) {
+      if (_timerWork) {
+        Notifs.scheduleTimer(end, 'Tempo!', _timerTitle);
+      } else {
+        final s = _s;
+        String next = 'Torna alla prossima serie';
+        if (s != null) {
+          for (final e in s.exercises) {
+            final i = e.sets.indexWhere((x) => !x.done);
+            if (i >= 0) {
+              next = 'Prossima: ${e.name} · serie ${i + 1}';
+              break;
+            }
+          }
+        }
+        Notifs.scheduleTimer(end, 'Recupero finito', next);
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -62,6 +90,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    Notifs.cancelTimer();
     _saveTimer?.cancel();
     _ticker?.cancel();
     if (_dirty && _s != null && !_closing) {
@@ -120,6 +150,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   void _stopTimer() {
     _ticker?.cancel();
     _ticker = null;
+    Notifs.cancelTimer();
     if (mounted) {
       setState(() {
         _timerEnd = null;
