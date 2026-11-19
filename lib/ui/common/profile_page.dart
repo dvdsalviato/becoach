@@ -64,9 +64,7 @@ class ProfilePage extends StatelessWidget {
             label: const Text('Esci dall\'account'),
           ),
           const SizedBox(height: 12),
-          const Center(
-            child: Text('BeCoach 1.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
-          ),
+          _DevTools(me: me),
         ],
       ),
     );
@@ -480,6 +478,133 @@ class _AthleteFormState extends State<_AthleteForm> {
         if (_dirty) ...[
           const SizedBox(height: 12),
           FilledButton(onPressed: _busy ? null : _save, child: const Text('Salva profilo')),
+        ],
+      ],
+    );
+  }
+}
+
+// ---------------- Strumenti di test (nascosti) ----------------
+
+/// Tocca 7 volte la versione per mostrare gli strumenti di test.
+class _DevTools extends StatefulWidget {
+  final AppUser me;
+  const _DevTools({required this.me});
+
+  @override
+  State<_DevTools> createState() => _DevToolsState();
+}
+
+class _DevToolsState extends State<_DevTools> {
+  static bool _unlocked = false; // resta sbloccato finché l'app è aperta
+  int _taps = 0;
+  bool _busy = false;
+
+  void _tap() {
+    if (_unlocked) return;
+    _taps++;
+    if (_taps >= 7) {
+      setState(() => _unlocked = true);
+      toast(context, 'Strumenti di test attivati');
+    } else if (_taps >= 4) {
+      toast(context, 'Ancora ${7 - _taps} tocchi');
+    }
+  }
+
+  Future<void> _run(Future<void> Function() action, String done) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (mounted) toast(context, done);
+    } catch (e) {
+      if (mounted) toast(context, 'Errore: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _switchAccount() async {
+    setState(() => _busy = true);
+    try {
+      await Db.signOut();
+      await Db.signInWithGoogle();
+    } catch (_) {
+      // se annulla, resta nella schermata di accesso
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final me = widget.me;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: GestureDetector(
+            onTap: _tap,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text('BeCoach 1.1.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
+            ),
+          ),
+        ),
+        if (_unlocked) ...[
+          const SectionLabel('Strumenti di test'),
+          Panel(
+            color: BC.subtle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Account: ${me.email}\nRuolo attuale: ${me.coachMode ? 'coach' : 'allenato'}'
+                    '${me.hasCoach ? '\nCollegato al coach: ${me.coachName ?? me.coachId}' : ''}',
+                    style: const TextStyle(fontSize: 13, color: BC.body, height: 1.4)),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _switchAccount,
+                  icon: const Icon(Icons.switch_account_outlined, size: 18),
+                  label: const Text('Cambia account Google'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _run(
+                            () => Db.updateUser(me.uid, {
+                              'coachMode': !me.coachMode,
+                              if (!me.coachMode) 'isCoach': true,
+                            }),
+                            me.coachMode ? 'Ora sei allenato' : 'Ora sei coach',
+                          ),
+                  icon: const Icon(Icons.swap_horiz, size: 18),
+                  label: Text(me.coachMode ? 'Passa ad allenato' : 'Passa a coach'),
+                ),
+                if (me.hasCoach) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () async {
+                            if (await confirm(context, 'Scollega dal coach',
+                                'Questo account non sarà più cliente di ${me.coachName ?? 'questo coach'}.',
+                                ok: 'Scollega', danger: true)) {
+                              await _run(
+                                () => Db.updateUser(me.uid, {
+                                  'coachId': null,
+                                  'coachName': null,
+                                  'joinedWithCode': null,
+                                }),
+                                'Scollegato dal coach',
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.link_off, size: 18),
+                    label: const Text('Scollega dal coach'),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ],
     );
