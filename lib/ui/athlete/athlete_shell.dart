@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../common/back_handler.dart';
 import '../common/exercises_page.dart';
 import '../common/profile_page.dart';
 import 'history_page.dart';
@@ -16,15 +17,26 @@ class AthleteShell extends StatefulWidget {
 
 class _AthleteShellState extends State<AthleteShell> {
   int _tab = 0;
+  final _homeScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _homeScroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final me = widget.me;
-    return Scaffold(
+    return ShellBackHandler(
+      tab: _tab,
+      setTab: (i) => setState(() => _tab = i),
+      homeScroll: _homeScroll,
+      child: Scaffold(
       body: IndexedStack(
         index: _tab,
         children: [
-          TodayPage(me: me),
+          TodayPage(me: me, scroll: _homeScroll),
           HistoryPage(me: me),
           ExercisesPage(me: me),
           ProfilePage(key: ValueKey('p-${me.uid}-${me.coachId}'), me: me),
@@ -43,6 +55,7 @@ class _AthleteShellState extends State<AthleteShell> {
             NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profilo'),
           ],
         ),
+      ),
       ),
     );
   }

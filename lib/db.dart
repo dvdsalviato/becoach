@@ -88,22 +88,65 @@ class Db {
     throw Exception('Impossibile generare il codice, riprova.');
   }
 
-  /// Collega l'allenato al coach tramite codice. Restituisce un messaggio d'errore o null.
-  static Future<String?> joinCoach(AppUser me, String rawCode) async {
+  /// Controlla il codice del coach. Restituisce (coachId, coachName) oppure lancia un errore leggibile.
+  static Future<(String, String)> checkInvite(AppUser me, String rawCode) async {
     final code = rawCode.trim().toUpperCase();
-    if (code.length < 4) return 'Codice non valido';
+    if (code.length < 4) throw Exception('Codice non valido');
     final inv = await invites.doc(code).get();
-    if (!inv.exists) return 'Codice non trovato';
+    if (!inv.exists) throw Exception('Codice non trovato');
     final coachId = inv.data()?['coachId'] as String?;
-    if (coachId == null) return 'Codice non valido';
-    if (coachId == me.uid) return 'Non puoi essere il coach di te stesso';
-    await users.doc(me.uid).update({
+    if (coachId == null) throw Exception('Codice non valido');
+    if (coachId == me.uid) throw Exception('Non puoi essere il coach di te stesso');
+    return (coachId, (inv.data()?['coachName'] as String?) ?? 'Coach');
+  }
+
+  /// Collega l'allenato al coach salvando i dati che il coach troverà in rubrica.
+  static Future<void> joinCoach(
+    AppUser me, {
+    required String code,
+    required String coachId,
+    required String coachName,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+  }) {
+    return users.doc(me.uid).update({
+      'firstName': firstName,
+      'lastName': lastName,
+      'name': '$firstName $lastName'.trim(),
+      'phone': phone,
+      'contactEmail': email,
       'coachId': coachId,
-      'coachName': inv.data()?['coachName'] ?? 'Coach',
-      'joinedWithCode': code,
+      'coachName': coachName,
+      'joinedWithCode': code.trim().toUpperCase(),
       'joinedAt': FieldValue.serverTimestamp(),
     });
-    return null;
+  }
+
+  /// Aggiunge in rubrica i clienti dell'app che non ci sono ancora.
+  static Future<void> syncClientsToContacts(String coachId, List<AppUser> clients) async {
+    if (clients.isEmpty) return;
+    final existing = await contactsRef(coachId).get();
+    final linked = existing.docs.map((d) => d.data()['linkedUid'] as String? ?? '').toSet();
+    for (final c in clients) {
+      if (linked.contains(c.uid)) continue;
+      var first = c.firstName;
+      var last = c.lastName;
+      if (first.isEmpty && last.isEmpty) {
+        final parts = c.name.trim().split(RegExp(r'\s+'));
+        first = parts.isEmpty ? '' : parts.first;
+        last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+      }
+      await contactsRef(coachId).add(Contact(
+        firstName: first,
+        lastName: last,
+        phone: c.phone,
+        email: c.email,
+        linkedUid: c.uid,
+      ).toMap()
+        ..['createdAt'] = FieldValue.serverTimestamp());
+    }
   }
 
   static Stream<List<AppUser>> clientsStream(String coachId) => users

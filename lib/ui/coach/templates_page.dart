@@ -9,7 +9,8 @@ import 'plan_editor_page.dart';
 /// Area riservata del coach: modelli di schede riutilizzabili.
 class TemplatesPage extends StatefulWidget {
   final AppUser me;
-  const TemplatesPage({super.key, required this.me});
+  final bool embedded;
+  const TemplatesPage({super.key, required this.me, this.embedded = false});
 
   @override
   State<TemplatesPage> createState() => _TemplatesPageState();
@@ -37,8 +38,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: StreamBuilder<List<Plan>>(
+    final content = StreamBuilder<List<Plan>>(
         stream: _stream,
         builder: (context, snap) {
           if (snap.hasError) return ErrorBox(snap.error);
@@ -49,10 +49,10 @@ class _TemplatesPageState extends State<TemplatesPage> {
               ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
-                  const PageHeader(overline: 'Area riservata', title: 'Modelli'),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Row(
+                  if (!widget.embedded) const PageHeader(overline: 'Area riservata', title: 'Modelli'),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, widget.embedded ? 12 : 0, 20, 8),
+                    child: const Row(
                       children: [
                         Icon(Icons.lock_outline, size: 14, color: BC.muted),
                         SizedBox(width: 6),
@@ -91,8 +91,8 @@ class _TemplatesPageState extends State<TemplatesPage> {
             ],
           );
         },
-      ),
-    );
+      );
+    return widget.embedded ? content : SafeArea(child: content);
   }
 
   Widget _tile(Plan t) {

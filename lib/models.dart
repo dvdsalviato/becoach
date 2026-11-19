@@ -24,6 +24,8 @@ class AppUser {
   final String gyms;
   final String specialties;
   final String phone;
+  final String firstName;
+  final String lastName;
   final bool googleCalendar; // il coach ha collegato Google Calendar
   final String googleCalendarEmail;
 
@@ -47,6 +49,8 @@ class AppUser {
     this.phone = '',
     this.googleCalendar = false,
     this.googleCalendarEmail = '',
+    this.firstName = '',
+    this.lastName = '',
   });
 
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -72,6 +76,8 @@ class AppUser {
       phone: _s(m['phone']),
       googleCalendar: m['googleCalendar'] == true,
       googleCalendarEmail: _s(m['googleCalendarEmail']),
+      firstName: _s(m['firstName']),
+      lastName: _s(m['lastName']),
     );
   }
 
@@ -483,7 +489,8 @@ class Session {
 class Appointment {
   String id;
   String coachId;
-  String clientId; // cliente dell'app (facoltativo)
+  String clientId; // account del cliente nell'app (facoltativo)
+  String contactId; // scheda anagrafica in rubrica
   String clientName;
   String clientEmail;
   String title;
@@ -497,6 +504,7 @@ class Appointment {
     this.id = '',
     required this.coachId,
     this.clientId = '',
+    this.contactId = '',
     this.clientName = '',
     this.clientEmail = '',
     required this.title,
@@ -515,6 +523,7 @@ class Appointment {
       id: doc.id,
       coachId: _s(m['coachId']),
       clientId: _s(m['clientId']),
+      contactId: _s(m['contactId']),
       clientName: _s(m['clientName']),
       clientEmail: _s(m['clientEmail']),
       title: _s(m['title'], 'Appuntamento'),
@@ -529,6 +538,7 @@ class Appointment {
   Map<String, dynamic> toMap() => {
         'coachId': coachId,
         'clientId': clientId,
+        'contactId': contactId,
         'clientName': clientName,
         'clientEmail': clientEmail,
         'title': title,
@@ -542,22 +552,48 @@ class Appointment {
 
 // ---------------- Rubrica ----------------
 
+/// Tipologie di scheda per l'anagrafica.
+const planTypes = [
+  'Ipertrofia',
+  'Forza',
+  'Dimagrimento',
+  'Ricomposizione',
+  'Tonificazione',
+  'Postura / riabilitazione',
+  'Preparazione atletica',
+  'Principiante',
+  'Altro',
+];
+
+/// Anagrafica cliente (rubrica del coach). Se il cliente usa l'app, [linkedUid] è il suo account.
 class Contact {
   String id;
   String firstName;
   String lastName;
+  int? age;
   String phone;
   String email;
+  String planType;
+  String goal;
+  String anamnesis;
   String notes;
+  String linkedUid;
 
   Contact({
     this.id = '',
     this.firstName = '',
     this.lastName = '',
+    this.age,
     this.phone = '',
     this.email = '',
+    this.planType = '',
+    this.goal = '',
+    this.anamnesis = '',
     this.notes = '',
+    this.linkedUid = '',
   });
+
+  bool get linked => linkedUid.isNotEmpty;
 
   String get fullName => [firstName, lastName].where((e) => e.trim().isNotEmpty).join(' ');
 
@@ -574,17 +610,27 @@ class Contact {
       id: doc.id,
       firstName: _s(m['firstName']),
       lastName: _s(m['lastName']),
+      age: _i(m['age']),
       phone: _s(m['phone']),
       email: _s(m['email']),
+      planType: _s(m['planType']),
+      goal: _s(m['goal']),
+      anamnesis: _s(m['anamnesis']),
       notes: _s(m['notes']),
+      linkedUid: _s(m['linkedUid']),
     );
   }
 
   Map<String, dynamic> toMap() => {
         'firstName': firstName,
         'lastName': lastName,
+        'age': age,
         'phone': phone,
         'email': email,
+        'planType': planType,
+        'goal': goal,
+        'anamnesis': anamnesis,
         'notes': notes,
+        'linkedUid': linkedUid,
       };
 }

@@ -13,7 +13,8 @@ import 'widgets.dart';
 class ExercisesPage extends StatefulWidget {
   final AppUser me;
   final bool pick;
-  const ExercisesPage({super.key, required this.me, this.pick = false});
+  final bool embedded;
+  const ExercisesPage({super.key, required this.me, this.pick = false, this.embedded = false});
 
   @override
   State<ExercisesPage> createState() => _ExercisesPageState();
@@ -203,6 +204,9 @@ class _ExercisesPageState extends State<ExercisesPage> {
 
     if (widget.pick) {
       return Scaffold(appBar: AppBar(title: const Text('Scegli esercizio')), body: body);
+    }
+    if (widget.embedded) {
+      return Padding(padding: const EdgeInsets.only(top: 12), child: body);
     }
     return SafeArea(
       child: Column(

@@ -7,12 +7,14 @@ import '../../util.dart';
 import '../athlete/history_page.dart';
 import '../common/session_detail_page.dart';
 import '../common/widgets.dart';
+import 'contact_form.dart';
 import 'plan_editor_page.dart';
 
 class ClientDetailPage extends StatefulWidget {
   final AppUser me;
   final AppUser client;
-  const ClientDetailPage({super.key, required this.me, required this.client});
+  final Contact? contact;
+  const ClientDetailPage({super.key, required this.me, required this.client, this.contact});
 
   @override
   State<ClientDetailPage> createState() => _ClientDetailPageState();
@@ -33,7 +35,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
     ].join(' · ');
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -80,6 +82,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
                       Tab(text: 'Panoramica'),
                       Tab(text: 'Schede'),
                       Tab(text: 'Storico'),
+                      Tab(text: 'Anagrafica'),
                     ],
                   ),
                 ],
@@ -103,6 +106,22 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
                     _Overview(me: widget.me, client: c, plans: plans, sessions: sessions),
                     _PlansTab(me: widget.me, client: c, plans: plans),
                     HistoryView(me: widget.me, sessions: sessions),
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+                      children: [
+                        ContactForm(
+                          coachId: widget.me.uid,
+                          contact: widget.contact ??
+                              Contact(
+                                firstName: c.firstName.isNotEmpty ? c.firstName : c.name,
+                                lastName: c.lastName,
+                                phone: c.phone,
+                                email: c.email,
+                                linkedUid: c.uid,
+                              ),
+                        ),
+                      ],
+                    ),
                   ],
                 );
               },

@@ -6,6 +6,7 @@ import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../common/widgets.dart';
+import 'clients_page.dart';
 
 // ---------------- Categorie ----------------
 
@@ -91,6 +92,7 @@ class AgendaPage extends StatefulWidget {
 class _AgendaPageState extends State<AgendaPage> {
   late final Stream<List<Appointment>> _appts = Db.appointmentsStream(widget.me.uid);
   late final Stream<List<AppUser>> _clients = Db.clientsStream(widget.me.uid);
+  late final Stream<List<Contact>> _contacts = Db.contactsStream(widget.me.uid);
 
   int _view = 2; // 0 giorno, 1 settimana, 2 mese
   DateTime _anchor = _day(DateTime.now());
@@ -204,7 +206,7 @@ class _AgendaPageState extends State<AgendaPage> {
     });
   }
 
-  void _openEditor(List<AppUser> clients, {Appointment? appt, DateTime? day}) {
+  void _openEditor(List<ClientEntry> clients, {Appointment? appt, DateTime? day}) {
     final base = day ?? _selected ?? _anchor;
     final now = DateTime.now();
     final a = appt ??
@@ -242,10 +244,12 @@ class _AgendaPageState extends State<AgendaPage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: StreamBuilder<List<AppUser>>(
+      child: StreamBuilder<List<Contact>>(
+        stream: _contacts,
+        builder: (context, cts) => StreamBuilder<List<AppUser>>(
         stream: _clients,
         builder: (context, cs) {
-          final clients = cs.data ?? [];
+          final clients = mergeClients(cts.data ?? [], cs.data ?? []);
           return StreamBuilder<List<Appointment>>(
             stream: _appts,
             builder: (context, snap) {
@@ -353,6 +357,69 @@ class _AgendaPageState extends State<AgendaPage> {
           );
         },
       ),
+      ),
+    );
+  }
+
+  /// Programma del giorno in sovrimpressione (doppio tocco sul giorno).
+  void _dayPopup(DateTime day, List<_Item> items, List<ClientEntry> clients) {
+    showDialog(
+      context: context,
+      builder: (c) => Dialog(
+        backgroundColor: BC.ground,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(c).size.height * 0.75),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 8, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${_wdShort[day.weekday - 1]} ${day.day} ${_months[day.month - 1]}',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                          Text(
+                              items.isEmpty
+                                  ? 'Nessun appuntamento'
+                                  : '${items.length} ${items.length == 1 ? 'appuntamento' : 'appuntamenti'}',
+                              style: const TextStyle(fontSize: 13, color: BC.muted)),
+                        ],
+                      ),
+                    ),
+                    IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close)),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  children: [_itemsColumn(items, clients)],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(c);
+                    _openEditor(clients, day: day);
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Aggiungi appuntamento'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -450,7 +517,7 @@ class _AgendaPageState extends State<AgendaPage> {
 
   // ---------- Vista mese ----------
 
-  Widget _month(List<_Item> items, List<_Item> Function(DateTime) itemsOf, List<AppUser> clients) {
+  Widget _month(List<_Item> items, List<_Item> Function(DateTime) itemsOf, List<ClientEntry> clients) {
     final (start, _) = _range;
     final today = _day(DateTime.now());
     final sel = _selected;
@@ -493,6 +560,10 @@ class _AgendaPageState extends State<AgendaPage> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(8),
                             onTap: () => setState(() => _selected = isSel ? null : day),
+                            onDoubleTap: () {
+                              setState(() => _selected = day);
+                              _dayPopup(day, dayItems, clients);
+                            },
                             child: SizedBox(
                               height: 52,
                               child: Column(
@@ -555,7 +626,7 @@ class _AgendaPageState extends State<AgendaPage> {
 
   // ---------- Vista settimana ----------
 
-  Widget _week(List<_Item> Function(DateTime) itemsOf, List<AppUser> clients) {
+  Widget _week(List<_Item> Function(DateTime) itemsOf, List<ClientEntry> clients) {
     final start = _weekStart(_anchor);
     final today = _day(DateTime.now());
     return Column(
@@ -577,6 +648,7 @@ class _AgendaPageState extends State<AgendaPage> {
                   children: [
                     InkWell(
                       onTap: () => setState(() => _selected = open ? null : day),
+                      onDoubleTap: () => _dayPopup(day, dayItems, clients),
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                         child: Row(
@@ -681,7 +753,7 @@ class _AgendaPageState extends State<AgendaPage> {
 
   // ---------- Vista giorno ----------
 
-  Widget _dayList(List<_Item> items, List<AppUser> clients, DateTime day) {
+  Widget _dayList(List<_Item> items, List<ClientEntry> clients, DateTime day) {
     if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
@@ -699,7 +771,7 @@ class _AgendaPageState extends State<AgendaPage> {
     return _itemsColumn(items, clients);
   }
 
-  Widget _itemsColumn(List<_Item> items, List<AppUser> clients) {
+  Widget _itemsColumn(List<_Item> items, List<ClientEntry> clients) {
     if (items.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
@@ -810,7 +882,7 @@ class _ItemCard extends StatelessWidget {
 class _AppointmentSheet extends StatefulWidget {
   final AppUser me;
   final Appointment appt;
-  final List<AppUser> clients;
+  final List<ClientEntry> clients;
   const _AppointmentSheet({required this.me, required this.appt, required this.clients});
 
   @override
@@ -824,7 +896,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
   late DateTime _date = DateTime(a.start.year, a.start.month, a.start.day);
   late TimeOfDay _time = TimeOfDay(hour: a.start.hour, minute: a.start.minute);
   late int _minutes = a.minutes;
-  late String _clientId = a.clientId;
+  late ClientEntry? _entry = _findEntry();
   late String _category = a.category;
   bool _invite = true;
   bool _busy = false;
@@ -838,11 +910,26 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
     super.dispose();
   }
 
-  AppUser? get _client {
-    for (final c in widget.clients) {
-      if (c.uid == _clientId) return c;
+  ClientEntry? _findEntry() {
+    for (final e in widget.clients) {
+      if (a.contactId.isNotEmpty && e.contact?.id == a.contactId) return e;
+      if (a.clientId.isNotEmpty && e.user?.uid == a.clientId) return e;
+    }
+    if (a.clientName.isNotEmpty) {
+      return ClientEntry(Contact(firstName: a.clientName, email: a.clientEmail), null);
     }
     return null;
+  }
+
+  Future<void> _pickClient() async {
+    final picked = await showModalBottomSheet<ClientEntry>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (_) => _ClientPicker(me: widget.me, clients: widget.clients),
+    );
+    if (picked != null) setState(() => _entry = picked);
   }
 
   Future<void> _save() async {
@@ -852,14 +939,15 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
       return;
     }
     setState(() => _busy = true);
-    final client = _client;
+    final client = _entry;
     a
       ..title = title
       ..notes = _notes.text.trim()
       ..start = DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute)
       ..minutes = _minutes
-      ..clientId = client?.uid ?? ''
-      ..clientName = client?.name ?? (_clientId.isEmpty ? '' : a.clientName)
+      ..clientId = client?.user?.uid ?? ''
+      ..contactId = client?.contact?.id ?? ''
+      ..clientName = client?.name ?? ''
       ..clientEmail = client?.email ?? ''
       ..category = _category;
     String? googleError;
@@ -911,7 +999,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
   @override
   Widget build(BuildContext context) {
     final auto = categorize('${_title.text} ${_notes.text}');
-    final client = _client;
+    final client = _entry;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -942,14 +1030,22 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
                   labelText: 'Titolo', hintText: 'Es. Sessione personal, Check mensile, Nuova scheda'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: widget.clients.any((c) => c.uid == _clientId) ? _clientId : '',
-              decoration: const InputDecoration(labelText: 'Cliente'),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('Nessuno')),
-                for (final c in widget.clients) DropdownMenuItem(value: c.uid, child: Text(c.name)),
-              ],
-              onChanged: (v) => setState(() => _clientId = v ?? ''),
+            InkWell(
+              onTap: _pickClient,
+              borderRadius: BorderRadius.circular(10),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Cliente',
+                  suffixIcon: client == null
+                      ? const Icon(Icons.search, color: BC.muted)
+                      : IconButton(
+                          icon: const Icon(Icons.close, color: BC.muted),
+                          onPressed: () => setState(() => _entry = null),
+                        ),
+                ),
+                child: Text(client?.name ?? 'Cerca o aggiungi un cliente',
+                    style: TextStyle(fontSize: 15, color: client == null ? BC.disabled : BC.ink)),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -1038,6 +1134,107 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
               ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Salvataggio…' : 'Salva')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Scelta del cliente con ricerca; in cima "Nuovo cliente" apre l'anagrafica.
+class _ClientPicker extends StatefulWidget {
+  final AppUser me;
+  final List<ClientEntry> clients;
+  const _ClientPicker({required this.me, required this.clients});
+
+  @override
+  State<_ClientPicker> createState() => _ClientPickerState();
+}
+
+class _ClientPickerState extends State<_ClientPicker> {
+  String _q = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _q.toLowerCase().trim();
+    final list = widget.clients
+        .where((e) => q.isEmpty || e.name.toLowerCase().contains(q) || e.phone.contains(q))
+        .toList();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: TextField(
+                autofocus: true,
+                onChanged: (v) => setState(() => _q = v),
+                decoration: const InputDecoration(
+                    hintText: 'Cerca cliente', prefixIcon: Icon(Icons.search, color: BC.muted)),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                children: [
+                  Panel(
+                    color: BC.steelTint,
+                    borderColor: BC.steelLight,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    onTap: () async {
+                      final c = await newClientFlow(context, widget.me, name: _q);
+                      if (c != null && context.mounted) Navigator.pop(context, ClientEntry(c, null));
+                    },
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_add_alt, color: BC.steelDark),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(_q.trim().isEmpty ? 'Nuovo cliente' : 'Nuovo cliente: "${_q.trim()}"',
+                              style: const TextStyle(
+                                  fontSize: 14.5, fontWeight: FontWeight.w600, color: BC.steelDark)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final e in list)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Panel(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        onTap: () => Navigator.pop(context, e),
+                        child: Row(
+                          children: [
+                            Avatar(e.initials, size: 34),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(e.name, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                                  if (e.phone.isNotEmpty)
+                                    Text(e.phone, style: const TextStyle(fontSize: 12.5, color: BC.muted)),
+                                ],
+                              ),
+                            ),
+                            if (e.inApp) const Icon(Icons.phone_iphone, size: 16, color: BC.steel),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (list.isEmpty && q.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Text('Nessun cliente trovato', style: TextStyle(color: BC.muted)),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

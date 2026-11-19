@@ -5,11 +5,13 @@ import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../common/widgets.dart';
+import 'join_coach.dart';
 import 'workout_page.dart';
 
 class TodayPage extends StatefulWidget {
   final AppUser me;
-  const TodayPage({super.key, required this.me});
+  final ScrollController? scroll;
+  const TodayPage({super.key, required this.me, this.scroll});
 
   @override
   State<TodayPage> createState() => _TodayPageState();
@@ -37,14 +39,13 @@ class _TodayPageState extends State<TodayPage> {
   Future<void> _join() async {
     setState(() => _busy = true);
     try {
-      final err = await Db.joinCoach(widget.me, _code.text);
-      if (mounted && err != null) toast(context, err);
-    } catch (e) {
-      if (mounted) toast(context, 'Errore: $e');
+      final ok = await joinCoachFlow(context, widget.me, _code.text);
+      if (ok) _code.clear();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
 
   void _openWorkout(String id) {
     Navigator.push(
@@ -93,6 +94,7 @@ class _TodayPageState extends State<TodayPage> {
               final firstName = me.name.split(' ').first;
 
               return ListView(
+                controller: widget.scroll,
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
                   PageHeader(overline: fmtDate(now), title: 'Ciao $firstName'),
