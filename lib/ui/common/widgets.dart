@@ -235,7 +235,7 @@ class ErrorBox extends StatelessWidget {
 void toast(BuildContext context, String msg) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+    ..showSnackBar(SnackBar(content: Text(msg), dismissDirection: DismissDirection.horizontal));
 }
 
 Future<void> openUrl(BuildContext context, String url) async {

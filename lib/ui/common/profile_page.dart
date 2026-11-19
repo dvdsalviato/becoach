@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../db.dart';
+import '../../google.dart';
+import '../../updates.dart';
 import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
@@ -44,12 +46,18 @@ class ProfilePage extends StatelessWidget {
           if (me.coachMode) ...[
             const SectionLabel('Codice invito per i clienti'),
             _InviteCodePanel(me: me),
+            const SectionLabel('La tua attività'),
+            _CoachForm(key: ValueKey('cf-${me.uid}'), me: me),
+            const SectionLabel('Collegamenti'),
+            _GoogleCalendarPanel(me: me),
           ] else ...[
             const SectionLabel('Il tuo coach'),
             _CoachLink(me: me),
             const SectionLabel('Dati personali'),
             _AthleteForm(key: ValueKey('af-${me.uid}'), me: me),
           ],
+          const SectionLabel('App'),
+          const _AppPanel(),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () async {
@@ -353,7 +361,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.3', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.4', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),
@@ -415,6 +423,185 @@ class _DevToolsState extends State<_DevTools> {
           ),
         ],
       ],
+    );
+  }
+}
+
+
+// ---------------- Coach: attività, collegamenti ----------------
+
+class _CoachForm extends StatefulWidget {
+  final AppUser me;
+  const _CoachForm({super.key, required this.me});
+
+  @override
+  State<_CoachForm> createState() => _CoachFormState();
+}
+
+class _CoachFormState extends State<_CoachForm> {
+  late final _name = TextEditingController(text: widget.me.name);
+  late final _business = TextEditingController(text: widget.me.businessName);
+  late final _gyms = TextEditingController(text: widget.me.gyms);
+  late final _phone = TextEditingController(text: widget.me.phone);
+  bool _dirty = false;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    for (final c in [_name, _business, _gyms, _phone]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    try {
+      await Db.updateUser(widget.me.uid, {
+        'name': _name.text.trim().isEmpty ? widget.me.name : _name.text.trim(),
+        'businessName': _business.text.trim(),
+        'gyms': _gyms.text.trim(),
+        'phone': _phone.text.trim(),
+      });
+      if (mounted) {
+        setState(() => _dirty = false);
+        toast(context, 'Dati salvati');
+      }
+    } catch (e) {
+      if (mounted) toast(context, 'Errore: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _f(TextEditingController c, String label, {String? hint, TextInputType? kb}) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: TextField(
+          controller: c,
+          keyboardType: kb,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) {
+            if (!_dirty) setState(() => _dirty = true);
+          },
+          decoration: InputDecoration(labelText: label, hintText: hint),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _f(_name, 'Nome e cognome'),
+        _f(_business, 'Nome dell\'attività', hint: 'Es. Salviato Personal Training'),
+        _f(_gyms, 'Palestre', hint: 'Dove segui i clienti'),
+        _f(_phone, 'Telefono di lavoro', kb: TextInputType.phone),
+        if (_dirty) FilledButton(onPressed: _busy ? null : _save, child: const Text('Salva')),
+      ],
+    );
+  }
+}
+
+class _GoogleCalendarPanel extends StatefulWidget {
+  final AppUser me;
+  const _GoogleCalendarPanel({required this.me});
+
+  @override
+  State<_GoogleCalendarPanel> createState() => _GoogleCalendarPanelState();
+}
+
+class _GoogleCalendarPanelState extends State<_GoogleCalendarPanel> {
+  bool _busy = false;
+
+  Future<void> _toggle() async {
+    setState(() => _busy = true);
+    try {
+      if (widget.me.googleCalendar) {
+        await Db.updateUser(widget.me.uid, {'googleCalendar': false});
+      } else {
+        final email = await Google.connectCalendar();
+        await Db.updateUser(widget.me.uid, {'googleCalendar': true, 'googleCalendarEmail': email});
+      }
+    } catch (e) {
+      if (mounted) toast(context, 'Collegamento non riuscito: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final on = widget.me.googleCalendar;
+    return Panel(
+      child: Row(
+        children: [
+          Icon(on ? Icons.event_available : Icons.event_outlined, color: on ? BC.steel : BC.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Google Calendar', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                Text(
+                  on
+                      ? (widget.me.googleCalendarEmail.isEmpty ? 'Collegato' : 'Collegato · ${widget.me.googleCalendarEmail}')
+                      : 'Non collegato',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, color: BC.muted),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _busy ? null : _toggle,
+            child: Text(on ? 'Scollega' : 'Collega'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppPanel extends StatefulWidget {
+  const _AppPanel();
+
+  @override
+  State<_AppPanel> createState() => _AppPanelState();
+}
+
+class _AppPanelState extends State<_AppPanel> {
+  late final Future<(String, int)> _ver = Updates.current();
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Panel(
+      child: Row(
+        children: [
+          const Icon(Icons.system_update_outlined, color: BC.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FutureBuilder<(String, int)>(
+              future: _ver,
+              builder: (c, s) => Text(
+                s.hasData ? 'Versione ${s.data!.$1} (build ${s.data!.$2})' : 'Versione',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () async {
+                    setState(() => _busy = true);
+                    await Updates.checkManually(context);
+                    if (mounted) setState(() => _busy = false);
+                  },
+            child: const Text('Cerca aggiornamenti'),
+          ),
+        ],
+      ),
     );
   }
 }

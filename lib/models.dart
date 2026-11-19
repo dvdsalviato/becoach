@@ -315,6 +315,7 @@ class SessionExercise {
   String model;
   String group;
   String muscle;
+  String record; // miglior serie di sempre, es. "60 × 8"
   List<String> prev; // "50 × 8" della volta precedente, per serie
   List<SetEntry> sets;
 
@@ -334,6 +335,7 @@ class SessionExercise {
     this.model = '',
     this.group = '',
     this.muscle = '',
+    this.record = '',
     List<String>? prev,
     List<SetEntry>? sets,
   })  : prev = prev ?? [],
@@ -359,6 +361,7 @@ class SessionExercise {
         model: _s(m['model']),
         group: _s(m['group']),
         muscle: _s(m['muscle']),
+        record: _s(m['record']),
         prev: (m['prev'] as List? ?? []).map((e) => e.toString()).toList(),
         sets: (m['sets'] as List? ?? [])
             .whereType<Map>()
@@ -382,6 +385,7 @@ class SessionExercise {
         'model': model,
         'group': group,
         'muscle': muscle,
+        'record': record,
         'prev': prev,
         'sets': sets.map((s) => s.toMap()).toList(),
       };
@@ -632,5 +636,64 @@ class Contact {
         'anamnesis': anamnesis,
         'notes': notes,
         'linkedUid': linkedUid,
+      };
+}
+
+
+// ---------------- Richieste di appuntamento ----------------
+
+const requestTypes = ['Check', 'Nuova scheda', 'Personal', 'Consulenza', 'Altro'];
+
+class AppointmentRequest {
+  String id;
+  String coachId;
+  String athleteId;
+  String athleteName;
+  String type;
+  String availability;
+  String note;
+  String status; // pending | approved | declined
+  String appointmentId;
+  DateTime? createdAt;
+
+  AppointmentRequest({
+    this.id = '',
+    required this.coachId,
+    required this.athleteId,
+    this.athleteName = '',
+    this.type = 'Check',
+    this.availability = '',
+    this.note = '',
+    this.status = 'pending',
+    this.appointmentId = '',
+    this.createdAt,
+  });
+
+  bool get pending => status == 'pending';
+
+  factory AppointmentRequest.fromDoc(String coachId, DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return AppointmentRequest(
+      id: doc.id,
+      coachId: coachId,
+      athleteId: _s(m['athleteId']),
+      athleteName: _s(m['athleteName']),
+      type: _s(m['type'], 'Altro'),
+      availability: _s(m['availability']),
+      note: _s(m['note']),
+      status: _s(m['status'], 'pending'),
+      appointmentId: _s(m['appointmentId']),
+      createdAt: _t(m['createdAt']),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'athleteId': athleteId,
+        'athleteName': athleteName,
+        'type': type,
+        'availability': availability,
+        'note': note,
+        'status': status,
+        'appointmentId': appointmentId,
       };
 }

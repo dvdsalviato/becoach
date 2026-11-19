@@ -1,58 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
-    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
-    function isMyClient(uid) { return userDoc(uid).data.get('coachId', null) == me(); }
-
+    function myCoach() { return get(/databases/$(database)/documents/users/$(me())).data.get('coachId', null); }
+    function isMyClient(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.get('coachId', null) == me(); }
     function coachIdOk() {
-      let newCoach = request.resource.data.get('coachId', null);
-      return newCoach == resource.data.get('coachId', null)
-        || newCoach == null
-        || (request.resource.data.get('joinedWithCode', '') != ''
-            && get(/databases/$(database)/documents/invites/$(request.resource.data.joinedWithCode)).data.coachId == newCoach);
+      let c = request.resource.data.get('coachId', null);
+      return c == resource.data.get('coachId', null) || c == null || (request.resource.data.get('joinedWithCode', '') != '' && get(/databases/$(database)/documents/invites/$(request.resource.data.joinedWithCode)).data.coachId == c);
     }
-
     match /users/{userId} {
       allow read: if signedIn() && (me() == userId || resource.data.get('coachId', null) == me());
       allow create: if signedIn() && me() == userId;
       allow update: if signedIn() && me() == userId && coachIdOk();
-      allow delete: if false;
-
-      // Area riservata: modelli, appunti privati sui clienti
-      match /{sub=**} {
-        allow read, write: if signedIn() && me() == userId;
-      }
+      match /{sub=**} { allow read, write: if signedIn() && me() == userId; }
     }
-
+    match /users/{coachId}/appointments/{id} {
+      allow read: if signedIn() && resource.data.clientId == me();
+    }
+    match /users/{coachId}/requests/{id} {
+      allow read: if signedIn() && resource.data.athleteId == me();
+      allow create: if signedIn() && request.resource.data.athleteId == me() && myCoach() == coachId;
+      allow delete: if signedIn() && resource.data.athleteId == me() && resource.data.status == 'pending';
+    }
     match /invites/{code} {
       allow get: if signedIn();
-      allow list: if false;
       allow create: if signedIn() && request.resource.data.coachId == me();
       allow update, delete: if signedIn() && resource.data.coachId == me();
     }
-
     match /plans/{planId} {
       allow read: if signedIn() && (resource.data.coachId == me() || resource.data.athleteId == me());
-      allow create: if signedIn() && request.resource.data.coachId == me()
-        && isMyClient(request.resource.data.athleteId);
-      allow update: if signedIn() && resource.data.coachId == me()
-        && request.resource.data.coachId == me()
-        && isMyClient(request.resource.data.athleteId);
+      allow create: if signedIn() && request.resource.data.coachId == me() && isMyClient(request.resource.data.athleteId);
+      allow update: if signedIn() && resource.data.coachId == me() && request.resource.data.coachId == me() && isMyClient(request.resource.data.athleteId);
       allow delete: if signedIn() && resource.data.coachId == me();
     }
-
     match /sessions/{sessionId} {
       allow read: if signedIn() && (resource.data.athleteId == me() || resource.data.coachId == me());
       allow create: if signedIn() && request.resource.data.athleteId == me();
-      allow update: if signedIn() && resource.data.athleteId == me()
-        && request.resource.data.athleteId == me()
-        && request.resource.data.coachId == resource.data.coachId;
+      allow update: if signedIn() && resource.data.athleteId == me() && request.resource.data.athleteId == me() && request.resource.data.coachId == resource.data.coachId;
       allow delete: if signedIn() && resource.data.athleteId == me();
     }
-
     match /coachVideos/{id} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.resource.data.coachId == me();

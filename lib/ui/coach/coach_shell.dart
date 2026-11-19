@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../updates.dart';
 import '../common/back_handler.dart';
 import '../common/profile_page.dart';
 import 'agenda_page.dart';
@@ -19,6 +20,14 @@ class CoachShell extends StatefulWidget {
 class _CoachShellState extends State<CoachShell> {
   int _tab = 0;
   final _homeScroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Updates.checkOnStart(context);
+    });
+  }
 
   @override
   void dispose() {

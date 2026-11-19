@@ -26,6 +26,7 @@ class _CoachHomePageState extends State<CoachHomePage> {
   late final Stream<List<Session>> _sessions = Db.sessionsForCoach(widget.me.uid);
   late final Stream<List<Plan>> _plans = Db.plansForCoach(widget.me.uid);
   late final Stream<List<Appointment>> _appts = Db.appointmentsStream(widget.me.uid);
+  late final Stream<List<AppointmentRequest>> _requests = Db.requestsStream(widget.me.uid);
 
   void _openSessions(String title, bool Function(Session) test) {
     Navigator.push(
@@ -49,7 +50,10 @@ class _CoachHomePageState extends State<CoachHomePage> {
               stream: _plans,
               builder: (context, ps) => StreamBuilder<List<Appointment>>(
                 stream: _appts,
-                builder: (context, aps) {
+                builder: (context, aps) => StreamBuilder<List<AppointmentRequest>>(
+                stream: _requests,
+                builder: (context, rqs) {
+                  final pendingReq = (rqs.data ?? []).where((r) => r.pending).toList();
                   final users = us.data ?? [];
                   final entries = mergeClients(cs.data ?? [], users);
                   final sessions = ss.data ?? [];
@@ -101,6 +105,10 @@ class _CoachHomePageState extends State<CoachHomePage> {
                                 ),
                               ],
                             ),
+                            if (pendingReq.isNotEmpty) ...[
+                              SectionLabel('Richieste di appuntamento · ${pendingReq.length}'),
+                              for (final r in pendingReq) _requestCard(r, entries),
+                            ],
                             SectionLabel('Oggi in agenda',
                                 trailing: TextButton(onPressed: () => widget.openTab(2), child: const Text('Agenda'))),
                             if (todayAppts.isEmpty)
@@ -161,8 +169,80 @@ class _CoachHomePageState extends State<CoachHomePage> {
                   );
                 },
               ),
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approve(AppointmentRequest r, List<ClientEntry> entries) async {
+    final entry = entries.firstWhere((e) => e.user?.uid == r.athleteId,
+        orElse: () => ClientEntry(Contact(firstName: r.athleteName), null));
+    final now = DateTime.now();
+    final appt = Appointment(
+      coachId: widget.me.uid,
+      title: r.type,
+      notes: [if (r.availability.isNotEmpty) 'Disponibilità: ${r.availability}', if (r.note.isNotEmpty) r.note].join('\n'),
+      start: DateTime(now.year, now.month, now.day + 1, 9),
+      clientId: r.athleteId,
+      contactId: entry.contact?.id ?? '',
+      clientName: entry.name,
+      clientEmail: entry.email,
+    );
+    await openAppointmentEditor(context, widget.me, entries, appt, onSaved: (a) {
+      Db.updateRequest(r, {'status': 'approved', 'appointmentId': a.id});
+    });
+  }
+
+  Widget _requestCard(AppointmentRequest r, List<ClientEntry> entries) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Panel(
+        borderColor: BC.steelLight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.event_note_outlined, color: BC.steel, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('${r.athleteName} chiede: ${r.type}',
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            if (r.availability.isNotEmpty || r.note.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                [if (r.availability.isNotEmpty) 'Disponibilità: ${r.availability}', if (r.note.isNotEmpty) r.note]
+                    .join('\n'),
+                style: const TextStyle(fontSize: 13, color: BC.body, height: 1.35),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      if (await confirm(context, 'Rifiuta richiesta', 'Rifiutare la richiesta di ${r.athleteName}?',
+                          ok: 'Rifiuta', danger: true)) {
+                        await Db.updateRequest(r, {'status': 'declined'});
+                      }
+                    },
+                    child: const Text('Rifiuta'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(onPressed: () => _approve(r, entries), child: const Text('Fissa data')),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -173,9 +173,6 @@ class WeeklyBodyMap extends StatelessWidget {
               Text('$total serie', style: const TextStyle(fontSize: 13, color: BC.muted)),
             ],
           ),
-          const SizedBox(height: 2),
-          const Text('Da lunedì, si azzera domenica alle 23:59',
-              style: TextStyle(fontSize: 12, color: BC.muted)),
           const SizedBox(height: 12),
           Row(
             children: [

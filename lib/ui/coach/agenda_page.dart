@@ -103,6 +103,7 @@ class _AgendaPageState extends State<AgendaPage> {
   List<GoogleEvent> _gEvents = [];
   String _gRange = '';
   bool _gLoading = false;
+  String? _gError;
 
   (DateTime, DateTime) get _range {
     switch (_view) {
@@ -135,6 +136,7 @@ class _AgendaPageState extends State<AgendaPage> {
     final (from, to) = _range;
     final key = '${from.toIso8601String()}-${to.toIso8601String()}';
     if (!force && key == _gRange) return;
+    if (!force && _gError != null) return; // non riprova da solo finché non tocchi "Aggiorna"
     setState(() => _gLoading = true);
     try {
       final ev = await Google.listEvents(from, to);
@@ -142,10 +144,16 @@ class _AgendaPageState extends State<AgendaPage> {
         setState(() {
           _gEvents = ev;
           _gRange = key;
+          _gError = null;
         });
       }
     } catch (e) {
-      if (mounted) toast(context, 'Google Calendar: $e');
+      if (mounted) {
+        setState(() {
+          _gRange = key;
+          _gError = '$e'.replaceFirst('Google Calendar: ', '');
+        });
+      }
     } finally {
       if (mounted) setState(() => _gLoading = false);
     }
@@ -446,6 +454,45 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
             ),
             Icon(Icons.chevron_right, color: BC.muted),
+          ],
+        ),
+      );
+    }
+    if (_gError != null) {
+      return Panel(
+        color: BC.warnBg,
+        borderColor: const Color(0xFFF1D9BC),
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        onTap: () => showDialog(
+          context: context,
+          builder: (c) => AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            title: const Text('Google Calendar non risponde',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            content: Text(
+              '$_gError\n\nSe dice che l\'API non è attiva: apri console.cloud.google.com, '
+              'scegli il progetto becoach, vai in "API e servizi → Libreria" e attiva Google Calendar API '
+              '(e Google Drive API per i video). Poi torna qui e tocca Aggiorna.',
+              style: const TextStyle(color: BC.body, height: 1.4),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Ok'))],
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: 18, color: BC.warnFg),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Google Calendar non sincronizzato · tocca per i dettagli',
+                  style: TextStyle(fontSize: 12.5, color: BC.warnFg)),
+            ),
+            IconButton(
+              tooltip: 'Aggiorna',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _loadGoogle(force: true),
+              icon: const Icon(Icons.refresh, size: 20, color: BC.warnFg),
+            ),
           ],
         ),
       );
@@ -879,11 +926,29 @@ class _ItemCard extends StatelessWidget {
 
 // ---------------- Editor appuntamento ----------------
 
+/// Apre l'editor di un appuntamento (usato anche per approvare le richieste dei clienti).
+Future<void> openAppointmentEditor(
+  BuildContext context,
+  AppUser me,
+  List<ClientEntry> clients,
+  Appointment appt, {
+  ValueChanged<Appointment>? onSaved,
+}) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    showDragHandle: true,
+    builder: (_) => _AppointmentSheet(me: me, appt: appt, clients: clients, onSaved: onSaved),
+  );
+}
+
 class _AppointmentSheet extends StatefulWidget {
   final AppUser me;
   final Appointment appt;
   final List<ClientEntry> clients;
-  const _AppointmentSheet({required this.me, required this.appt, required this.clients});
+  final ValueChanged<Appointment>? onSaved;
+  const _AppointmentSheet({required this.me, required this.appt, required this.clients, this.onSaved});
 
   @override
   State<_AppointmentSheet> createState() => _AppointmentSheetState();
@@ -972,6 +1037,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
     }
     try {
       await Db.saveAppointment(a);
+      widget.onSaved?.call(a);
       if (!mounted) return;
       Navigator.pop(context);
       toast(context, googleError == null ? 'Appuntamento salvato' : 'Salvato in BeCoach, ma non su Google: $googleError');

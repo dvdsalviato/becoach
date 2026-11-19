@@ -351,30 +351,42 @@ class Db {
   }) async {
     final day = plan.days[dayIndex];
     final past = await sessions.where('athleteId', isEqualTo: me.uid).get();
-    final previous = _sortSessions(past.docs.map(Session.fromDoc).toList())
-        .where((s) => !s.isLive && s.planId == plan.id && s.dayIndex == dayIndex)
-        .toList();
-    final last = previous.isEmpty ? null : previous.first;
+    final history = _sortSessions(past.docs.map(Session.fromDoc).toList()).where((s) => !s.isLive).toList();
+
+    // Ultima volta e record per esercizio, da qualsiasi scheda.
+    final lastByEx = <String, SessionExercise>{};
+    final bestByEx = <String, SetEntry>{};
+    for (final h in history) {
+      for (final e in h.exercises) {
+        if (e.doneSets == 0) continue;
+        lastByEx.putIfAbsent(e.exerciseId, () => e);
+        for (final st in e.sets) {
+          if (!st.done || st.kg == null) continue;
+          final cur = bestByEx[e.exerciseId];
+          if (cur == null ||
+              st.kg! > cur.kg! ||
+              (st.kg! == cur.kg! && (st.reps ?? 0) > (cur.reps ?? 0))) {
+            bestByEx[e.exerciseId] = st;
+          }
+        }
+      }
+    }
 
     final exercises = <SessionExercise>[];
     for (var i = 0; i < day.exercises.length; i++) {
       final pe = day.exercises[i];
-      SessionExercise? lastEx;
-      if (last != null) {
-        for (final e in last.exercises) {
-          if (e.exerciseId == pe.exerciseId) {
-            lastEx = e;
-            break;
-          }
-        }
-      }
-      final prev = lastEx == null
-          ? <String>[]
-          : lastEx.sets.where((s) => s.done).map((s) => s.label(pe.isTimed)).toList();
+      final lastEx = lastByEx[pe.exerciseId];
+      final doneLast = lastEx == null ? <SetEntry>[] : lastEx.sets.where((s) => s.done).toList();
+      final prev = doneLast.map((s) => s.label(pe.isTimed)).toList();
       final sets = List.generate(pe.sets, (k) {
-        final ls = (lastEx != null && k < lastEx.sets.length) ? lastEx.sets[k] : null;
-        return SetEntry(kg: ls?.kg, sec: pe.isTimed ? pe.seconds : null);
+        final ls = k < doneLast.length ? doneLast[k] : (doneLast.isEmpty ? null : doneLast.last);
+        return SetEntry(
+          kg: ls?.kg,
+          reps: pe.isTimed ? null : ls?.reps,
+          sec: pe.isTimed ? (ls?.sec ?? pe.seconds) : null,
+        );
       });
+      final best = bestByEx[pe.exerciseId];
       exercises.add(SessionExercise(
         key: '$i-${pe.exerciseId}',
         exerciseId: pe.exerciseId,
@@ -392,6 +404,7 @@ class Db {
         model: (lastEx != null && lastEx.brand.isNotEmpty) ? lastEx.model : pe.model,
         group: pe.group,
         muscle: pe.muscle.isNotEmpty ? pe.muscle : (exerciseById(pe.exerciseId)?.muscle ?? ''),
+        record: best == null ? '' : best.label(false),
         prev: prev,
         sets: sets,
       ));
@@ -448,6 +461,42 @@ class Db {
   }
 
   static Future<void> deleteAppointment(Appointment a) => appointmentsRef(a.coachId).doc(a.id).delete();
+
+  /// Appuntamenti fissati dal coach per un cliente (li vede anche il cliente).
+  static Stream<List<Appointment>> appointmentsForClient(String coachId, String clientId) =>
+      appointmentsRef(coachId)
+          .where('clientId', isEqualTo: clientId)
+          .snapshots()
+          .map((q) => q.docs.map(Appointment.fromDoc).toList()..sort((a, b) => a.start.compareTo(b.start)));
+
+  // ---------- Richieste di appuntamento ----------
+
+  static CollectionReference<Map<String, dynamic>> requestsRef(String coachId) =>
+      users.doc(coachId).collection('requests');
+
+  static Stream<List<AppointmentRequest>> requestsStream(String coachId) =>
+      requestsRef(coachId).snapshots().map((q) {
+        final l = q.docs.map((d) => AppointmentRequest.fromDoc(coachId, d)).toList();
+        l.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+        return l;
+      });
+
+  static Stream<List<AppointmentRequest>> myRequests(String coachId, String athleteId) => requestsRef(coachId)
+          .where('athleteId', isEqualTo: athleteId)
+          .snapshots()
+          .map((q) {
+        final l = q.docs.map((d) => AppointmentRequest.fromDoc(coachId, d)).toList();
+        l.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+        return l;
+      });
+
+  static Future<void> createRequest(AppointmentRequest r) =>
+      requestsRef(r.coachId).add(r.toMap()..['createdAt'] = FieldValue.serverTimestamp());
+
+  static Future<void> updateRequest(AppointmentRequest r, Map<String, dynamic> data) =>
+      requestsRef(r.coachId).doc(r.id).update(data);
+
+  static Future<void> deleteRequest(AppointmentRequest r) => requestsRef(r.coachId).doc(r.id).delete();
 
   // ---------- Rubrica ----------
 

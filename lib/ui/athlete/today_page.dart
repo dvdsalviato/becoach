@@ -5,6 +5,7 @@ import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../common/widgets.dart';
+import 'appointments_section.dart';
 import 'join_coach.dart';
 import 'workout_page.dart';
 
@@ -140,6 +141,7 @@ class _TodayPageState extends State<TodayPage> {
                             ),
                           ),
                         ],
+                        if (me.hasCoach) AthleteAppointments(key: ValueKey(me.coachId), me: me),
                         if (!me.hasCoach) ...[
                           const SizedBox(height: 16),
                           Panel(
@@ -173,22 +175,6 @@ class _TodayPageState extends State<TodayPage> {
                                 '${me.coachName ?? 'Il tuo coach'} non ti ha ancora assegnato una scheda. La vedrai qui appena pronta.',
                           ),
                         ] else ...[
-                          const SizedBox(height: 8),
-                          Panel(
-                            color: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.lock_outline, size: 16, color: BC.muted),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                      'Scheda di ${me.coachName ?? 'coach'} · puoi solo cambiare l\'ordine',
-                                      style: const TextStyle(fontSize: 13, color: BC.body)),
-                                ),
-                              ],
-                            ),
-                          ),
                           const SectionLabel('Scheda attiva'),
                           Text(plan.name,
                               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
@@ -248,8 +234,8 @@ class _DayCard extends StatelessWidget {
                 child: Text(day.name,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
-              Text(last == null ? 'Mai fatto' : 'Ultima: ${relDay(last!)}',
-                  style: const TextStyle(fontSize: 12, color: BC.muted)),
+              if (last != null)
+                Text('Ultima: ${relDay(last!)}', style: const TextStyle(fontSize: 12, color: BC.muted)),
             ],
           ),
           const SizedBox(height: 8),

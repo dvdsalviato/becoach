@@ -1,11 +1,11 @@
-## BeCoach 1.3
+## BeCoach 1.4
 
-- Home del coach: appuntamenti di oggi, chi si allena ora, cose da fare, azioni rapide
-- Clienti e rubrica uniti: anagrafica e anamnesi (età, telefono, email, tipologia scheda, obiettivo, infortuni, note), ricerca e filtri
-- Chi si collega con il codice inserisce nome, cognome, telefono ed email e finisce da solo nella rubrica del coach
-- Scheda cliente con la nuova sezione Anagrafica
-- Appuntamenti: ricerca del cliente e "Nuovo cliente" che apre l'anagrafica
-- Agenda: doppio tocco su un giorno per vederne il programma in sovrimpressione
-- "Schede" riunisce modelli ed esercizi
-- Tasto indietro: torna alla Home, poi in cima, poi doppio tocco per uscire
-- Icona dell'app ridimensionata
+- Avviso quando esce una nuova versione, con il tasto "Aggiorna ora"
+- Allenato: richiesta di appuntamento al coach (check, nuova scheda, personal…); il coach la conferma scegliendo data e ora
+- Allenato: gli appuntamenti fissati dal coach compaiono nella Home
+- Coach: richieste dei clienti nella Home, con "Fissa data" e "Rifiuta"
+- Carichi e record ripresi da qualsiasi scheda in cui hai già fatto l'esercizio
+- Le ripetizioni proposte sono quelle della volta precedente
+- Profilo con attività, Google Calendar e aggiornamenti
+- I messaggi in basso si chiudono anche scorrendo di lato
+- L'errore di Google Calendar compare una volta sola, nella barra dell'agenda

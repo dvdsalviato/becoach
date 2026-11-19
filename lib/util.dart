@@ -45,3 +45,9 @@ String fmtDuration(Duration d) {
   if (m < 60) return '$m min';
   return '${m ~/ 60} h ${(m % 60).toString().padLeft(2, '0')}';
 }
+
+/// Primo numero in un testo: "8-10" -> 8, "12" -> 12.
+int? firstInt(String s) {
+  final m = RegExp(r'\d+').firstMatch(s);
+  return m == null ? null : int.tryParse(m.group(0)!);
+}

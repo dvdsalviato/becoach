@@ -147,7 +147,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
       set.done = !set.done;
       if (set.done && !e.isTimed && set.reps == null) {
         // se le ripetizioni sono un numero preciso, le propone come fatte
-        final target = int.tryParse(e.targetReps.trim());
+        final target = firstInt(e.targetReps);
         if (target != null) {
           set.reps = target;
           _ctrls['${e.key}#$i#reps']?.text = '$target';
@@ -493,7 +493,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
     final set = e.sets[i];
     if (set.done) return;
     if (!e.isTimed && set.reps == null) {
-      final t = int.tryParse(e.targetReps.trim());
+      final t = firstInt(e.targetReps);
       if (t != null) set.reps = t;
     }
     _toggleDone(e, i);
@@ -569,9 +569,15 @@ class _WorkoutPageState extends State<WorkoutPage> {
             ),
           ),
         ],
-        if (si < e.prev.length) ...[
+        if (si < e.prev.length || e.record.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text('La volta scorsa: ${e.prev[si]}', style: const TextStyle(fontSize: 13, color: BC.muted)),
+          Text(
+            [
+              if (si < e.prev.length) 'La volta scorsa: ${e.prev[si]}',
+              if (e.record.isNotEmpty) 'Record: ${e.record}',
+            ].join('  ·  '),
+            style: const TextStyle(fontSize: 13, color: BC.muted),
+          ),
         ],
         if (e.notes.trim().isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -611,11 +617,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
               Expanded(
                 child: _stepper(
                   label: e.isTimed ? 'Secondi' : 'Ripetizioni',
-                  value: second == null ? (int.tryParse(e.targetReps.trim())?.toString() ?? '—') : '$second',
+                  value: second == null ? (firstInt(e.targetReps)?.toString() ?? '—') : '$second',
                   onMinus: () => _setSecond(e, si,
-                      (second ?? int.tryParse(e.targetReps.trim()) ?? 0) - (e.isTimed ? 5 : 1)),
+                      (second ?? firstInt(e.targetReps) ?? 0) - (e.isTimed ? 5 : 1)),
                   onPlus: () => _setSecond(e, si,
-                      (second ?? int.tryParse(e.targetReps.trim()) ?? 0) + (e.isTimed ? 5 : 1)),
+                      (second ?? firstInt(e.targetReps) ?? 0) + (e.isTimed ? 5 : 1)),
                   onEdit: () async {
                     final v = await askText(context,
                         title: e.isTimed ? 'Secondi' : 'Ripetizioni',
@@ -955,6 +961,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                                   e.target,
                                   if (!nextSame && e.restSec > 0) 'recupero ${fmtSec(e.restSec)}',
                                   if (nextSame) 'poi subito il prossimo',
+                                  if (e.record.isNotEmpty) 'record ${e.record}',
                                 ].join(' · '),
                                 style: const TextStyle(fontSize: 12, color: BC.muted)),
                           ],

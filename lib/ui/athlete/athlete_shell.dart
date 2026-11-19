@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../updates.dart';
 import '../common/back_handler.dart';
 import '../common/exercises_page.dart';
 import '../common/profile_page.dart';
@@ -18,6 +19,14 @@ class AthleteShell extends StatefulWidget {
 class _AthleteShellState extends State<AthleteShell> {
   int _tab = 0;
   final _homeScroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Updates.checkOnStart(context);
+    });
+  }
 
   @override
   void dispose() {
