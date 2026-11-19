@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
+import '../../util.dart';
 import '../common/widgets.dart';
 import 'client_detail_page.dart';
 
@@ -17,7 +18,7 @@ class ClientsPage extends StatefulWidget {
 
 class _ClientsPageState extends State<ClientsPage> {
   late final Stream<List<AppUser>> _clients = Db.clientsStream(widget.me.uid);
-  late final Stream<List<Session>> _live = Db.liveSessionsForCoach(widget.me.uid);
+  late final Stream<List<Session>> _live = Db.sessionsForCoach(widget.me.uid);
   String _query = '';
   bool _onlyLive = false;
 
@@ -85,7 +86,14 @@ class _ClientsPageState extends State<ClientsPage> {
           return StreamBuilder<List<Session>>(
             stream: _live,
             builder: (context, ls) {
-              final liveIds = {for (final s in ls.data ?? <Session>[]) s.athleteId};
+              final allSessions = ls.data ?? <Session>[];
+              final liveIds = {for (final s in allSessions) if (s.isLive) s.athleteId};
+              final lastByClient = <String, DateTime>{};
+              for (final s in allSessions) {
+                if (s.isLive || s.startedAt == null) continue;
+                final cur = lastByClient[s.athleteId];
+                if (cur == null || s.startedAt!.isAfter(cur)) lastByClient[s.athleteId] = s.startedAt!;
+              }
               final all = cs.data ?? [];
               final q = _query.toLowerCase();
               final list = all.where((c) {
@@ -185,7 +193,12 @@ class _ClientsPageState extends State<ClientsPage> {
                                                           fontWeight: FontWeight.w600)),
                                                   const SizedBox(height: 3),
                                                   Text(
-                                                      cl.goal.isNotEmpty ? cl.goal : cl.email,
+                                                      [
+                                                        if (cl.goal.isNotEmpty) cl.goal,
+                                                        lastByClient[cl.uid] == null
+                                                            ? 'mai allenato'
+                                                            : 'ultimo: ${relDay(lastByClient[cl.uid]!).toLowerCase()}',
+                                                      ].join(' · '),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
                                                       style: const TextStyle(

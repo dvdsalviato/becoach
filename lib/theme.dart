@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Palette BeCoach: grafite con accento blu acciaio.
 class BC {
-  static const graphite = Color(0xFF2B2F36);
+  static const graphite = Color(0xFF334155); // grigio ardesia con nota blu
   static const ink = Color(0xFF16181D);
   static const steel = Color(0xFF3F5F7F);
   static const steelDark = Color(0xFF2E4862);

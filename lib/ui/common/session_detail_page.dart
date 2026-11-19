@@ -119,7 +119,7 @@ class SessionDetailPage extends StatelessWidget {
                                         style: const TextStyle(
                                             fontSize: 15, fontWeight: FontWeight.w600)),
                                     const SizedBox(height: 2),
-                                    Text('Obiettivo ${e.targetSets} × ${e.targetReps}',
+                                    Text('Obiettivo ${e.target}${e.machineLabel.isNotEmpty ? ' · ${e.machineLabel}' : ''}',
                                         style: const TextStyle(fontSize: 12, color: BC.muted)),
                                   ],
                                 ),
@@ -142,7 +142,7 @@ class SessionDetailPage extends StatelessWidget {
                                   child: Text('${i + 1}',
                                       style: const TextStyle(fontWeight: FontWeight.w600))),
                               Expanded(
-                                child: Text(e.sets[i].done ? e.sets[i].label : 'non fatta',
+                                child: Text(e.sets[i].done ? e.sets[i].label(e.isTimed) : 'non fatta',
                                     style: TextStyle(
                                         color: e.sets[i].done ? BC.ink : BC.disabled,
                                         fontFeatures: const [FontFeature.tabularFigures()])),

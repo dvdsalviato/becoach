@@ -91,10 +91,15 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
       MaterialPageRoute(builder: (_) => ExercisesPage(me: widget.me, pick: true)),
     );
     if (ex == null || !mounted) return;
+    final cardio = ex.muscle == 'Cardio';
     final pe = PlanExercise(
       exerciseId: ex.id,
       name: ex.name,
       machine: ex.machine,
+      mode: ex.timed ? 'time' : 'reps',
+      sets: cardio ? 1 : 3,
+      seconds: cardio ? 600 : 30,
+      restSec: cardio ? 0 : (ex.timed ? 60 : 90),
       videoUrl: _videos[ex.id] ?? '',
     );
     setState(() => day.exercises.add(pe));
@@ -102,89 +107,14 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
   }
 
   Future<void> _editExercise(PlanExercise e) async {
-    final sets = TextEditingController(text: '${e.sets}');
-    final reps = TextEditingController(text: e.reps);
-    final rest = TextEditingController(text: '${e.restSec}');
-    final notes = TextEditingController(text: e.notes);
-    final video = TextEditingController(text: e.videoUrl);
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
-      builder: (c) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(e.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              if (e.machine.isNotEmpty)
-                Text(e.machine, style: const TextStyle(color: BC.muted)),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: sets,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Serie'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: reps,
-                      decoration: const InputDecoration(labelText: 'Ripetizioni', hintText: '10 o 8-10'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: rest,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Recupero', suffixText: 's'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notes,
-                maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                    labelText: 'Indicazioni per il cliente',
-                    hintText: 'Es. gomiti verso i fianchi, ritorno in 2 secondi'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: video,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                    labelText: 'Link video (facoltativo)',
-                    hintText: 'Vuoto = video standard o il tuo video salvato'),
-              ),
-              const SizedBox(height: 18),
-              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Fatto')),
-            ],
-          ),
-        ),
-      ),
+      builder: (c) => _ExerciseSheet(e: e),
     );
-    if (ok == true && mounted) {
-      setState(() {
-        e.sets = (int.tryParse(sets.text.trim()) ?? e.sets).clamp(1, 20).toInt();
-        e.reps = reps.text.trim().isEmpty ? e.reps : reps.text.trim();
-        e.restSec = (int.tryParse(rest.text.trim()) ?? e.restSec).clamp(0, 900).toInt();
-        e.notes = notes.text.trim();
-        e.videoUrl = video.text.trim();
-      });
-    }
-    for (final c in [sets, reps, rest, notes, video]) {
-      c.dispose();
-    }
+    if (ok == true && mounted) setState(() {});
   }
 
   void _exerciseAction(PlanDay day, int i, String action) {
@@ -208,8 +138,48 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
         case 'remove':
           day.exercises.removeAt(i);
           break;
+        case 'superset':
+          if (i < day.exercises.length - 1) {
+            final a = day.exercises[i], b = day.exercises[i + 1];
+            final g = a.group.isNotEmpty
+                ? a.group
+                : (b.group.isNotEmpty ? b.group : DateTime.now().microsecondsSinceEpoch.toString());
+            final old = b.group;
+            a.group = g;
+            for (final x in day.exercises) {
+              if (old.isNotEmpty && x.group == old) x.group = g;
+            }
+            b.group = g;
+          }
+          break;
+        case 'unsuperset':
+          day.exercises[i].group = '';
+          break;
       }
+      _cleanGroups(day);
     });
+  }
+
+  /// Un superset con un solo esercizio non ha senso: lo scioglie.
+  void _cleanGroups(PlanDay day) {
+    final count = <String, int>{};
+    for (final x in day.exercises) {
+      if (x.group.isNotEmpty) count[x.group] = (count[x.group] ?? 0) + 1;
+    }
+    for (final x in day.exercises) {
+      if (x.group.isNotEmpty && (count[x.group] ?? 0) < 2) x.group = '';
+    }
+  }
+
+  /// Lettera del superset (A, B, …) per ogni gruppo, in ordine di comparsa.
+  Map<String, String> _groupLetters(PlanDay day) {
+    final m = <String, String>{};
+    for (final x in day.exercises) {
+      if (x.group.isNotEmpty && !m.containsKey(x.group)) {
+        m[x.group] = String.fromCharCode(65 + m.length);
+      }
+    }
+    return m;
   }
 
   Future<void> _dayAction(int i, String action) async {
@@ -322,6 +292,7 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
 
   Widget _dayPanel(int d) {
     final day = _p.days[d];
+    final letters = _groupLetters(day);
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Panel(
@@ -351,54 +322,7 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
                 ],
               ),
             ),
-            for (var i = 0; i < day.exercises.length; i++)
-              InkWell(
-                onTap: () => _editExercise(day.exercises[i]),
-                child: Container(
-                  decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: Color(0xFFECEEF0)))),
-                  padding: const EdgeInsets.fromLTRB(14, 10, 0, 10),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        child: Text('${i + 1}',
-                            style: const TextStyle(color: BC.muted, fontWeight: FontWeight.w600)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(day.exercises[i].name,
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text(
-                              [
-                                day.exercises[i].target,
-                                '${day.exercises[i].restSec}″',
-                                if (day.exercises[i].notes.isNotEmpty) 'con indicazioni',
-                                if (day.exercises[i].videoUrl.isNotEmpty) 'video tuo',
-                              ].join(' · '),
-                              style: const TextStyle(fontSize: 12, color: BC.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: BC.muted, size: 20),
-                        onSelected: (v) => _exerciseAction(day, i, v),
-                        itemBuilder: (_) => [
-                          if (i > 0) const PopupMenuItem(value: 'up', child: Text('Sposta su')),
-                          if (i < day.exercises.length - 1)
-                            const PopupMenuItem(value: 'down', child: Text('Sposta giù')),
-                          const PopupMenuItem(value: 'dup', child: Text('Duplica')),
-                          const PopupMenuItem(value: 'remove', child: Text('Rimuovi')),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            for (var i = 0; i < day.exercises.length; i++) _exerciseRow(day, i, letters),
             Container(
               decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: Color(0xFFECEEF0)))),
@@ -407,6 +331,230 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Aggiungi esercizio'),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exerciseRow(PlanDay day, int i, Map<String, String> letters) {
+    final e = day.exercises[i];
+    final inGroup = e.group.isNotEmpty;
+    final firstOfGroup = inGroup && (i == 0 || day.exercises[i - 1].group != e.group);
+    final nextSame = i < day.exercises.length - 1 && day.exercises[i + 1].group == e.group && inGroup;
+    return InkWell(
+      onTap: () => _editExercise(e),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: firstOfGroup || !inGroup ? const Color(0xFFECEEF0) : Colors.transparent),
+            left: BorderSide(color: inGroup ? BC.steel : Colors.transparent, width: 3),
+          ),
+          color: inGroup ? const Color(0xFFF8FAFC) : null,
+        ),
+        padding: const EdgeInsets.fromLTRB(11, 10, 0, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (firstOfGroup)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Tag.steel('SUPERSET ${letters[e.group] ?? ''}'),
+              ),
+            Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  child: Text('${i + 1}', style: const TextStyle(color: BC.muted, fontWeight: FontWeight.w600)),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(e.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          e.target,
+                          if (!nextSame) 'rec. ${fmtSec(e.restSec)}',
+                          if (e.machineLabel.isNotEmpty) e.machineLabel,
+                          if (e.notes.isNotEmpty) 'con indicazioni',
+                          if (e.videoUrl.isNotEmpty) 'video tuo',
+                        ].join(' · '),
+                        style: const TextStyle(fontSize: 12, color: BC.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: BC.muted, size: 20),
+                  onSelected: (v) => _exerciseAction(day, i, v),
+                  itemBuilder: (_) => [
+                    if (i < day.exercises.length - 1 && !nextSame)
+                      const PopupMenuItem(value: 'superset', child: Text('Superset con il successivo')),
+                    if (inGroup) const PopupMenuItem(value: 'unsuperset', child: Text('Togli dal superset')),
+                    if (i > 0) const PopupMenuItem(value: 'up', child: Text('Sposta su')),
+                    if (i < day.exercises.length - 1)
+                      const PopupMenuItem(value: 'down', child: Text('Sposta giù')),
+                    const PopupMenuItem(value: 'dup', child: Text('Duplica')),
+                    const PopupMenuItem(value: 'remove', child: Text('Rimuovi')),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExerciseSheet extends StatefulWidget {
+  final PlanExercise e;
+  const _ExerciseSheet({required this.e});
+
+  @override
+  State<_ExerciseSheet> createState() => _ExerciseSheetState();
+}
+
+class _ExerciseSheetState extends State<_ExerciseSheet> {
+  late final PlanExercise e = widget.e;
+  late String _mode = e.mode;
+  late String _brand = e.brand;
+  late final _sets = TextEditingController(text: '${e.sets}');
+  late final _reps = TextEditingController(text: e.reps);
+  late final _secs = TextEditingController(text: '${e.seconds}');
+  late final _rest = TextEditingController(text: '${e.restSec}');
+  late final _notes = TextEditingController(text: e.notes);
+  late final _video = TextEditingController(text: e.videoUrl);
+  late final _model = TextEditingController(text: e.model);
+
+  @override
+  void dispose() {
+    for (final c in [_sets, _reps, _secs, _rest, _notes, _video, _model]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _apply() {
+    e.mode = _mode;
+    e.sets = (int.tryParse(_sets.text.trim()) ?? e.sets).clamp(1, 20).toInt();
+    if (_reps.text.trim().isNotEmpty) e.reps = _reps.text.trim();
+    e.seconds = (int.tryParse(_secs.text.trim()) ?? e.seconds).clamp(1, 7200).toInt();
+    e.restSec = (int.tryParse(_rest.text.trim()) ?? e.restSec).clamp(0, 900).toInt();
+    e.notes = _notes.text.trim();
+    e.videoUrl = _video.text.trim();
+    e.brand = _brand;
+    e.model = _brand.isEmpty ? '' : _model.text.trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timed = _mode == 'time';
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(e.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            if (e.machine.isNotEmpty) Text(e.machine, style: const TextStyle(color: BC.muted)),
+            const SizedBox(height: 14),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'reps', label: Text('Ripetizioni'), icon: Icon(Icons.repeat, size: 18)),
+                ButtonSegment(value: 'time', label: Text('A tempo'), icon: Icon(Icons.timer_outlined, size: 18)),
+              ],
+              selected: {_mode},
+              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                selectedBackgroundColor: BC.steelTint,
+                selectedForegroundColor: BC.steelDark,
+              ),
+              onSelectionChanged: (v) => setState(() => _mode = v.first),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _sets,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Serie'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: timed
+                      ? TextField(
+                          controller: _secs,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Durata', suffixText: 's'),
+                        )
+                      : TextField(
+                          controller: _reps,
+                          decoration: const InputDecoration(labelText: 'Ripetizioni', hintText: '10 o 8-10'),
+                        ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _rest,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Recupero', suffixText: 's'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _brand.isEmpty ? '' : (machineBrands.contains(_brand) ? _brand : 'Altro'),
+              decoration: InputDecoration(
+                labelText: 'Marca del macchinario',
+                helperText: machineHasBrand(e.machine) ? null : 'Facoltativa per questo attrezzo',
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Qualsiasi')),
+                for (final b in machineBrands) DropdownMenuItem(value: b, child: Text(b)),
+              ],
+              onChanged: (v) => setState(() => _brand = v ?? ''),
+            ),
+            if (_brand.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _model,
+                decoration: const InputDecoration(
+                    labelText: 'Modello (facoltativo)', hintText: 'Es. Pure Strength, Selection 700'),
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              maxLines: 3,
+              minLines: 1,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                  labelText: 'Indicazioni per il cliente',
+                  hintText: 'Es. gomiti verso i fianchi, ritorno in 2 secondi'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _video,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                  labelText: 'Link video (facoltativo)',
+                  hintText: 'Vuoto = video standard o il tuo video salvato'),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: () {
+                _apply();
+                Navigator.pop(context, true);
+              },
+              child: const Text('Fatto'),
             ),
           ],
         ),

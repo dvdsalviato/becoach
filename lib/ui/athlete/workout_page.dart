@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../data/exercise_library.dart';
 
 import '../../db.dart';
 import '../../models.dart';
@@ -28,6 +32,14 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Timer? _saveTimer;
   final Map<String, TextEditingController> _ctrls = {};
 
+  // timer di recupero / esercizio a tempo
+  Timer? _ticker;
+  DateTime? _timerEnd;
+  int _timerTotal = 0;
+  String _timerTitle = '';
+  bool _timerWork = false;
+  VoidCallback? _timerDone;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +60,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _ticker?.cancel();
     if (_dirty && _s != null && !_closing) {
       Db.saveSessionExercises(_s!);
     }
@@ -77,11 +90,59 @@ class _WorkoutPageState extends State<WorkoutPage> {
     }
   }
 
+  void _startTimer(int seconds, String title, {bool work = false, VoidCallback? onDone}) {
+    if (seconds <= 0) return;
+    _ticker?.cancel();
+    setState(() {
+      _timerTotal = seconds;
+      _timerEnd = DateTime.now().add(Duration(seconds: seconds));
+      _timerTitle = title;
+      _timerWork = work;
+      _timerDone = onDone;
+    });
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted) return;
+      if (_remaining <= 0) {
+        final cb = _timerDone;
+        _stopTimer();
+        HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
+        cb?.call();
+      } else {
+        setState(() {});
+      }
+    });
+  }
+
+  void _stopTimer() {
+    _ticker?.cancel();
+    _ticker = null;
+    if (mounted) {
+      setState(() {
+        _timerEnd = null;
+        _timerDone = null;
+      });
+    }
+  }
+
+  int get _remaining {
+    final end = _timerEnd;
+    if (end == null) return 0;
+    final ms = end.difference(DateTime.now()).inMilliseconds;
+    return ms <= 0 ? 0 : (ms / 1000).ceil();
+  }
+
+  SessionExercise? _nextOf(SessionExercise e) {
+    final s = _s!;
+    final i = s.exercises.indexOf(e);
+    return (i >= 0 && i < s.exercises.length - 1) ? s.exercises[i + 1] : null;
+  }
+
   void _toggleDone(SessionExercise e, int i) {
     final set = e.sets[i];
     setState(() {
       set.done = !set.done;
-      if (set.done && set.reps == null) {
+      if (set.done && !e.isTimed && set.reps == null) {
         // se le ripetizioni sono un numero preciso, le propone come fatte
         final target = int.tryParse(e.targetReps.trim());
         if (target != null) {
@@ -97,12 +158,82 @@ class _WorkoutPageState extends State<WorkoutPage> {
     });
     _saveTimer?.cancel();
     _saveNow();
+
+    if (!set.done) return;
+    // superset: niente recupero, si passa subito all'esercizio successivo del gruppo
+    final next = _nextOf(e);
+    if (e.group.isNotEmpty && next != null && next.group == e.group) {
+      toast(context, 'Superset: ora ${next.name}');
+      return;
+    }
+    if (e.restSec > 0) _startTimer(e.restSec, 'Recupero');
+  }
+
+  void _startWorkTimer(SessionExercise e, int i) {
+    final set = e.sets[i];
+    final secs = set.sec ?? e.targetSec;
+    _startTimer(secs, '${e.name} · serie ${i + 1}', work: true, onDone: () {
+      if (!mounted) return;
+      set.sec ??= secs;
+      if (!set.done) _toggleDone(e, i);
+    });
+  }
+
+  Future<void> _changeMachine(SessionExercise e) async {
+    var brand = e.brand;
+    final model = TextEditingController(text: e.model);
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(c).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Macchinario usato',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text(e.name, style: const TextStyle(color: BC.muted)),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: brand.isEmpty ? '' : (machineBrands.contains(brand) ? brand : 'Altro'),
+                decoration: const InputDecoration(labelText: 'Marca'),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Non specificata')),
+                  for (final b in machineBrands) DropdownMenuItem(value: b, child: Text(b)),
+                ],
+                onChanged: (v) => setSheet(() => brand = v ?? ''),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: model,
+                decoration: const InputDecoration(labelText: 'Modello (facoltativo)'),
+              ),
+              const SizedBox(height: 18),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salva')),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok == true && mounted) {
+      setState(() {
+        e.brand = brand;
+        e.model = brand.isEmpty ? '' : model.text.trim();
+      });
+      _scheduleSave();
+    }
+    model.dispose();
   }
 
   void _addSet(SessionExercise e) {
     setState(() {
       final last = e.sets.isEmpty ? null : e.sets.last;
-      e.sets.add(SetEntry(kg: last?.kg));
+      e.sets.add(SetEntry(kg: last?.kg, sec: e.isTimed ? (last?.sec ?? e.targetSec) : null));
     });
     _scheduleSave();
   }
@@ -114,6 +245,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
       e.sets.removeLast();
       _ctrls.remove('${e.key}#$i#kg')?.dispose();
       _ctrls.remove('${e.key}#$i#reps')?.dispose();
+      _ctrls.remove('${e.key}#$i#sec')?.dispose();
     });
     _scheduleSave();
   }
@@ -214,7 +346,76 @@ class _WorkoutPageState extends State<WorkoutPage> {
       ),
       body: _reorder ? _buildReorder(s) : _buildList(s),
       bottomNavigationBar: SafeArea(
-        child: Container(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_timerEnd != null) _timerBar(),
+            _bottomBar(done, total),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timerBar() {
+    final rem = _remaining;
+    final progress = _timerTotal == 0 ? 0.0 : (1 - rem / _timerTotal).clamp(0.0, 1.0);
+    return Container(
+      color: _timerWork ? BC.steel : BC.graphite,
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 3,
+              color: Colors.white,
+              backgroundColor: const Color(0x33FFFFFF),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_timerTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFD5DDE6), fontSize: 12)),
+                Text(fmtClock(rem),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: [FontFeature.tabularFigures()])),
+              ],
+            ),
+          ),
+          if (!_timerWork)
+            TextButton(
+              onPressed: () {
+                final end = _timerEnd;
+                if (end == null) return;
+                setState(() {
+                  _timerEnd = end.add(const Duration(seconds: 15));
+                  _timerTotal += 15;
+                });
+              },
+              child: const Text('+15″', style: TextStyle(color: Colors.white)),
+            ),
+          TextButton(
+            onPressed: _stopTimer,
+            child: Text(_timerWork ? 'Stop' : 'Salta', style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bottomBar(int done, int total) {
+    return Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -229,9 +430,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
               FilledButton(onPressed: _finish, child: const Text('Termina')),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildReorder(Session s) {
@@ -285,7 +484,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                                 fontWeight: FontWeight.w600,
                                 color: e.completed ? BC.muted : BC.ink)),
                       ),
-                      Text('${e.targetSets} × ${e.targetReps}',
+                      Text(e.target,
                           style: const TextStyle(fontSize: 12, color: BC.muted)),
                     ],
                   ),
@@ -298,102 +497,166 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
   }
 
+  Map<String, String> _letters(Session s) {
+    final m = <String, String>{};
+    for (final x in s.exercises) {
+      if (x.group.isNotEmpty && !m.containsKey(x.group)) m[x.group] = String.fromCharCode(65 + m.length);
+    }
+    return m;
+  }
+
   Widget _buildList(Session s) {
+    final letters = _letters(s);
+    final firstOpen = s.exercises.indexWhere((x) => !x.completed);
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: s.exercises.length,
       itemBuilder: (c, idx) {
         final e = s.exercises[idx];
-        final current = !e.completed &&
-            s.exercises.indexWhere((x) => !x.completed) == idx;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Panel(
-            padding: EdgeInsets.zero,
-            borderColor: current ? BC.steel : BC.border,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                InkWell(
-                  onTap: () => openExercise(context, widget.me,
-                      exerciseId: e.exerciseId,
-                      name: e.name,
-                      machine: e.machine,
-                      notes: e.notes,
-                      videoUrl: e.videoUrl),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 40,
-                          decoration: BoxDecoration(
-                              color: BC.graphite, borderRadius: BorderRadius.circular(6)),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(e.name,
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      decoration:
-                                          e.completed ? TextDecoration.lineThrough : null,
-                                      color: e.completed ? BC.muted : BC.ink)),
-                              const SizedBox(height: 2),
-                              Text(
-                                  '${e.targetSets} × ${e.targetReps} · recupero ${e.restSec}″${e.machine.isNotEmpty ? ' · ${e.machine}' : ''}',
-                                  style: const TextStyle(fontSize: 12, color: BC.muted)),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right, color: BC.muted),
-                      ],
-                    ),
-                  ),
-                ),
-                if (e.notes.trim().isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                        color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
-                    child: Text.rich(
-                      TextSpan(children: [
-                        const TextSpan(
-                            text: 'Coach: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                        TextSpan(text: e.notes),
-                      ]),
-                      style: const TextStyle(fontSize: 13, color: BC.steelDark, height: 1.35),
-                    ),
-                  ),
-                _headerRow(),
-                for (var i = 0; i < e.sets.length; i++) _setRow(e, i),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        final current = firstOpen == idx;
+        final inGroup = e.group.isNotEmpty;
+        final firstOfGroup = inGroup && (idx == 0 || s.exercises[idx - 1].group != e.group);
+        final nextSame = inGroup && idx < s.exercises.length - 1 && s.exercises[idx + 1].group == e.group;
+        final card = Panel(
+          padding: EdgeInsets.zero,
+          borderColor: current ? BC.steel : BC.border,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InkWell(
+                onTap: () => openExercise(context, widget.me,
+                    exerciseId: e.exerciseId,
+                    name: e.name,
+                    machine: e.machine,
+                    notes: e.notes,
+                    videoUrl: e.videoUrl),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
                   child: Row(
                     children: [
-                      TextButton.icon(
-                        onPressed: () => _addSet(e),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Serie'),
+                      Container(
+                        width: 56,
+                        height: 40,
+                        decoration:
+                            BoxDecoration(color: BC.graphite, borderRadius: BorderRadius.circular(6)),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
                       ),
-                      if (e.sets.length > 1)
-                        TextButton.icon(
-                          onPressed: () => _removeSet(e),
-                          icon: const Icon(Icons.remove, size: 18, color: BC.muted),
-                          label: const Text('Togli', style: TextStyle(color: BC.muted)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(e.name,
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: e.completed ? TextDecoration.lineThrough : null,
+                                    color: e.completed ? BC.muted : BC.ink)),
+                            const SizedBox(height: 2),
+                            Text(
+                                [
+                                  e.target,
+                                  if (!nextSame && e.restSec > 0) 'recupero ${fmtSec(e.restSec)}',
+                                  if (nextSame) 'poi subito il prossimo',
+                                ].join(' · '),
+                                style: const TextStyle(fontSize: 12, color: BC.muted)),
+                          ],
                         ),
+                      ),
+                      const Icon(Icons.chevron_right, color: BC.muted),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              if (machineHasBrand(e.machine) || e.brand.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _changeMachine(e),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: BC.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.precision_manufacturing_outlined, size: 16, color: BC.muted),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              e.machineLabel.isEmpty
+                                  ? '${e.machine} · indica la marca usata'
+                                  : '${e.machine} · ${e.machineLabel}',
+                              style: TextStyle(
+                                  fontSize: 12.5, color: e.machineLabel.isEmpty ? BC.muted : BC.body),
+                            ),
+                          ),
+                          const Icon(Icons.edit_outlined, size: 15, color: BC.muted),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (e.notes.trim().isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
+                  child: Text.rich(
+                    TextSpan(children: [
+                      const TextSpan(text: 'Coach: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                      TextSpan(text: e.notes),
+                    ]),
+                    style: const TextStyle(fontSize: 13, color: BC.steelDark, height: 1.35),
+                  ),
+                ),
+              _headerRow(e.isTimed),
+              for (var i = 0; i < e.sets.length; i++) _setRow(e, i),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                child: Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _addSet(e),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Serie'),
+                    ),
+                    if (e.sets.length > 1)
+                      TextButton.icon(
+                        onPressed: () => _removeSet(e),
+                        icon: const Icon(Icons.remove, size: 18, color: BC.muted),
+                        label: const Text('Togli', style: TextStyle(color: BC.muted)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        );
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: nextSame ? 4 : 12),
+          child: inGroup
+              ? Container(
+                  padding: const EdgeInsets.only(left: 8),
+                  decoration: const BoxDecoration(
+                    border: Border(left: BorderSide(color: BC.steel, width: 3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (firstOfGroup)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Tag.steel('SUPERSET ${letters[e.group] ?? ''}'),
+                        ),
+                      card,
+                    ],
+                  ),
+                )
+              : card,
         );
       },
     );
@@ -401,16 +664,18 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
   static const _hdr = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: BC.muted);
 
-  Widget _headerRow() => const Padding(
-        padding: EdgeInsets.fromLTRB(14, 4, 14, 4),
+  Widget _headerRow(bool timed) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
         child: Row(
           children: [
-            SizedBox(width: 34, child: Text('Serie', style: _hdr)),
-            Expanded(child: Text('Prima', style: _hdr)),
-            SizedBox(width: 72, child: Text('Kg', style: _hdr, textAlign: TextAlign.center)),
-            SizedBox(width: 8),
-            SizedBox(width: 56, child: Text('Rip.', style: _hdr, textAlign: TextAlign.center)),
-            SizedBox(width: 52),
+            const SizedBox(width: 34, child: Text('Serie', style: _hdr)),
+            const Expanded(child: Text('Prima', style: _hdr)),
+            const SizedBox(width: 64, child: Text('Kg', style: _hdr, textAlign: TextAlign.center)),
+            const SizedBox(width: 6),
+            SizedBox(
+                width: 56,
+                child: Text(timed ? 'Sec' : 'Rip.', style: _hdr, textAlign: TextAlign.center)),
+            SizedBox(width: timed ? 100 : 52),
           ],
         ),
       );
@@ -418,7 +683,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _setRow(SessionExercise e, int i) {
     final set = e.sets[i];
     final kg = _ctrl('${e.key}#$i#kg', set.kg == null ? '' : fmtKg(set.kg));
-    final reps = _ctrl('${e.key}#$i#reps', set.reps?.toString() ?? '');
+    final second = e.isTimed
+        ? _ctrl('${e.key}#$i#sec', set.sec?.toString() ?? '${e.targetSec}')
+        : _ctrl('${e.key}#$i#reps', set.reps?.toString() ?? '');
     final fill = set.done ? BC.subtle : Colors.white;
     InputDecoration deco() => InputDecoration(
           isDense: true,
@@ -431,15 +698,13 @@ class _WorkoutPageState extends State<WorkoutPage> {
       padding: const EdgeInsets.fromLTRB(14, 6, 10, 6),
       child: Row(
         children: [
-          SizedBox(
-              width: 34,
-              child: Text('${i + 1}', style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(width: 34, child: Text('${i + 1}', style: const TextStyle(fontWeight: FontWeight.w600))),
           Expanded(
             child: Text(i < e.prev.length ? e.prev[i] : '—',
                 style: const TextStyle(fontSize: 13, color: BC.muted)),
           ),
           SizedBox(
-            width: 72,
+            width: 64,
             child: TextField(
               controller: kg,
               textAlign: TextAlign.center,
@@ -452,42 +717,66 @@ class _WorkoutPageState extends State<WorkoutPage> {
               },
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           SizedBox(
             width: 56,
             child: TextField(
-              controller: reps,
+              controller: second,
               textAlign: TextAlign.center,
               keyboardType: TextInputType.number,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               decoration: deco(),
               onChanged: (v) {
-                set.reps = parseInt(v);
+                if (e.isTimed) {
+                  set.sec = parseInt(v);
+                } else {
+                  set.reps = parseInt(v);
+                }
                 _scheduleSave();
               },
             ),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 44,
-            height: 40,
-            child: Material(
-              color: set.done ? BC.steel : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: set.done ? BC.steel : BC.border),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => _toggleDone(e, i),
-                child: Icon(Icons.check,
-                    size: 20, color: set.done ? Colors.white : BC.disabled,
-                    semanticLabel: 'Serie ${i + 1} fatta'),
-              ),
+          if (e.isTimed) ...[
+            _squareButton(
+              icon: Icons.timer_outlined,
+              filled: false,
+              label: 'Avvia timer serie ${i + 1}',
+              onTap: () => _startWorkTimer(e, i),
             ),
+            const SizedBox(width: 6),
+          ],
+          _squareButton(
+            icon: Icons.check,
+            filled: set.done,
+            label: 'Serie ${i + 1} fatta',
+            onTap: () => _toggleDone(e, i),
           ),
         ],
       ),
     );
   }
+
+  Widget _squareButton(
+      {required IconData icon, required bool filled, required String label, required VoidCallback onTap}) {
+    return SizedBox(
+      width: 44,
+      height: 40,
+      child: Material(
+        color: filled ? BC.steel : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: filled ? BC.steel : BC.border),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Icon(icon, size: 20, color: filled ? Colors.white : BC.muted, semanticLabel: label),
+        ),
+      ),
+    );
+  }
 }
+
+/// 75 -> 1:15
+String fmtClock(int s) => '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';

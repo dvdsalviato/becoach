@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'data/exercise_library.dart';
 import 'models.dart';
 
 class Db {
@@ -211,6 +212,26 @@ class Db {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+  // ---------- Esercizi personalizzati del coach ----------
+
+  static CollectionReference<Map<String, dynamic>> customExRef(String coachId) =>
+      users.doc(coachId).collection('customExercises');
+
+  static Stream<List<Exercise>> customExercisesStream(String coachId) =>
+      customExRef(coachId).snapshots().map((q) {
+        final l = q.docs.map((d) => Exercise.fromMap('custom_${d.id}', d.data())).toList();
+        l.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        return l;
+      });
+
+  static Future<Exercise> addCustomExercise(String coachId, Exercise e) async {
+    final ref = await customExRef(coachId).add(e.toMap()..['createdAt'] = FieldValue.serverTimestamp());
+    return Exercise('custom_${ref.id}', e.name, e.muscle, e.machine, timed: e.timed, custom: true);
+  }
+
+  static Future<void> deleteCustomExercise(String coachId, String exerciseId) =>
+      customExRef(coachId).doc(exerciseId.replaceFirst('custom_', '')).delete();
+
   // ---------- Video del coach ----------
 
   static String _videoId(String coachId, String exerciseId) => '${coachId}_$exerciseId';
@@ -255,6 +276,16 @@ class Db {
       .snapshots()
       .map((q) => _sortSessions(q.docs.map(Session.fromDoc).toList()));
 
+  static Stream<List<Session>> sessionsForCoach(String coachId) => sessions
+      .where('coachId', isEqualTo: coachId)
+      .snapshots()
+      .map((q) => _sortSessions(q.docs.map(Session.fromDoc).toList()));
+
+  static Stream<List<Plan>> plansForCoach(String coachId) => plans
+      .where('coachId', isEqualTo: coachId)
+      .snapshots()
+      .map((q) => q.docs.map(Plan.fromDoc).toList());
+
   static Stream<List<Session>> liveSessionsForCoach(String coachId) => sessions
       .where('coachId', isEqualTo: coachId)
       .where('status', isEqualTo: 'live')
@@ -298,10 +329,10 @@ class Db {
       }
       final prev = lastEx == null
           ? <String>[]
-          : lastEx.sets.where((s) => s.done).map((s) => s.label).toList();
+          : lastEx.sets.where((s) => s.done).map((s) => s.label(pe.isTimed)).toList();
       final sets = List.generate(pe.sets, (k) {
         final ls = (lastEx != null && k < lastEx.sets.length) ? lastEx.sets[k] : null;
-        return SetEntry(kg: ls?.kg);
+        return SetEntry(kg: ls?.kg, sec: pe.isTimed ? pe.seconds : null);
       });
       exercises.add(SessionExercise(
         key: '$i-${pe.exerciseId}',
@@ -313,6 +344,12 @@ class Db {
         restSec: pe.restSec,
         notes: pe.notes,
         videoUrl: pe.videoUrl,
+        mode: pe.mode,
+        targetSec: pe.seconds,
+        // se l'allenato aveva indicato un altro macchinario, lo ripropone
+        brand: (lastEx != null && lastEx.brand.isNotEmpty) ? lastEx.brand : pe.brand,
+        model: (lastEx != null && lastEx.brand.isNotEmpty) ? lastEx.model : pe.model,
+        group: pe.group,
         prev: prev,
         sets: sets,
       ));

@@ -19,6 +19,11 @@ class AppUser {
   final double? weightKg;
   final String goal;
   final DateTime? createdAt;
+  // dati professionali del coach
+  final String businessName;
+  final String gyms;
+  final String specialties;
+  final String phone;
 
   AppUser({
     required this.uid,
@@ -34,6 +39,10 @@ class AppUser {
     this.weightKg,
     this.goal = '',
     this.createdAt,
+    this.businessName = '',
+    this.gyms = '',
+    this.specialties = '',
+    this.phone = '',
   });
 
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -53,6 +62,10 @@ class AppUser {
       weightKg: _d(m['weightKg']),
       goal: _s(m['goal']),
       createdAt: _t(m['createdAt']),
+      businessName: _s(m['businessName']),
+      gyms: _s(m['gyms']),
+      specialties: _s(m['specialties']),
+      phone: _s(m['phone']),
     );
   }
 
@@ -72,48 +85,72 @@ class PlanExercise {
   String exerciseId;
   String name;
   String machine;
+  String mode; // 'reps' oppure 'time'
   int sets;
   String reps;
+  int seconds; // obiettivo per gli esercizi a tempo
   int restSec;
   String notes;
   String videoUrl;
+  String brand; // marca del macchinario
+  String model; // modello del macchinario
+  String group; // id superset: stesso valore = stesso superset
 
   PlanExercise({
     required this.exerciseId,
     required this.name,
     this.machine = '',
+    this.mode = 'reps',
     this.sets = 3,
     this.reps = '10',
+    this.seconds = 30,
     this.restSec = 90,
     this.notes = '',
     this.videoUrl = '',
+    this.brand = '',
+    this.model = '',
+    this.group = '',
   });
+
+  bool get isTimed => mode == 'time';
 
   factory PlanExercise.fromMap(Map<String, dynamic> m) => PlanExercise(
         exerciseId: _s(m['exerciseId']),
         name: _s(m['name']),
         machine: _s(m['machine']),
+        mode: _s(m['mode'], 'reps'),
         sets: _i(m['sets']) ?? 3,
         reps: _s(m['reps'], '10'),
+        seconds: _i(m['seconds']) ?? 30,
         restSec: _i(m['restSec']) ?? 90,
         notes: _s(m['notes']),
         videoUrl: _s(m['videoUrl']),
+        brand: _s(m['brand']),
+        model: _s(m['model']),
+        group: _s(m['group']),
       );
 
   Map<String, dynamic> toMap() => {
         'exerciseId': exerciseId,
         'name': name,
         'machine': machine,
+        'mode': mode,
         'sets': sets,
         'reps': reps,
+        'seconds': seconds,
         'restSec': restSec,
         'notes': notes,
         'videoUrl': videoUrl,
+        'brand': brand,
+        'model': model,
+        'group': group,
       };
 
   PlanExercise copy() => PlanExercise.fromMap(toMap());
 
-  String get target => '$sets × $reps';
+  String get target => isTimed ? '$sets × ${fmtSec(seconds)}' : '$sets × $reps';
+
+  String get machineLabel => [brand, model].where((e) => e.isNotEmpty).join(' · ');
 }
 
 class PlanDay {
@@ -213,16 +250,31 @@ class Plan {
 class SetEntry {
   double? kg;
   int? reps;
+  int? sec;
   bool done;
 
-  SetEntry({this.kg, this.reps, this.done = false});
+  SetEntry({this.kg, this.reps, this.sec, this.done = false});
 
-  factory SetEntry.fromMap(Map<String, dynamic> m) =>
-      SetEntry(kg: _d(m['kg']), reps: _i(m['reps']), done: m['done'] == true);
+  factory SetEntry.fromMap(Map<String, dynamic> m) => SetEntry(
+      kg: _d(m['kg']), reps: _i(m['reps']), sec: _i(m['sec']), done: m['done'] == true);
 
-  Map<String, dynamic> toMap() => {'kg': kg, 'reps': reps, 'done': done};
+  Map<String, dynamic> toMap() => {'kg': kg, 'reps': reps, 'sec': sec, 'done': done};
 
-  String get label => '${fmtKg(kg)} × ${reps ?? '—'}';
+  String label(bool timed) {
+    if (timed) {
+      final t = sec == null ? '—' : fmtSec(sec!);
+      return kg == null ? t : '${fmtKg(kg)} kg · $t';
+    }
+    return '${fmtKg(kg)} × ${reps ?? '—'}';
+  }
+}
+
+/// 45 -> 45″, 90 -> 1:30
+String fmtSec(int s) {
+  if (s < 60) return '$s″';
+  final m = s ~/ 60;
+  final r = s % 60;
+  return '$m:${r.toString().padLeft(2, '0')}';
 }
 
 String fmtKg(double? v) {
@@ -241,6 +293,11 @@ class SessionExercise {
   int restSec;
   String notes;
   String videoUrl;
+  String mode;
+  int targetSec;
+  String brand;
+  String model;
+  String group;
   List<String> prev; // "50 × 8" della volta precedente, per serie
   List<SetEntry> sets;
 
@@ -254,10 +311,19 @@ class SessionExercise {
     this.restSec = 90,
     this.notes = '',
     this.videoUrl = '',
+    this.mode = 'reps',
+    this.targetSec = 30,
+    this.brand = '',
+    this.model = '',
+    this.group = '',
     List<String>? prev,
     List<SetEntry>? sets,
   })  : prev = prev ?? [],
         sets = sets ?? [];
+
+  bool get isTimed => mode == 'time';
+  String get target => isTimed ? '$targetSets × ${fmtSec(targetSec)}' : '$targetSets × $targetReps';
+  String get machineLabel => [brand, model].where((e) => e.isNotEmpty).join(' · ');
 
   factory SessionExercise.fromMap(Map<String, dynamic> m) => SessionExercise(
         key: _s(m['key']),
@@ -269,6 +335,11 @@ class SessionExercise {
         restSec: _i(m['restSec']) ?? 90,
         notes: _s(m['notes']),
         videoUrl: _s(m['videoUrl']),
+        mode: _s(m['mode'], 'reps'),
+        targetSec: _i(m['targetSec']) ?? 30,
+        brand: _s(m['brand']),
+        model: _s(m['model']),
+        group: _s(m['group']),
         prev: (m['prev'] as List? ?? []).map((e) => e.toString()).toList(),
         sets: (m['sets'] as List? ?? [])
             .whereType<Map>()
@@ -286,6 +357,11 @@ class SessionExercise {
         'restSec': restSec,
         'notes': notes,
         'videoUrl': videoUrl,
+        'mode': mode,
+        'targetSec': targetSec,
+        'brand': brand,
+        'model': model,
+        'group': group,
         'prev': prev,
         'sets': sets.map((s) => s.toMap()).toList(),
       };

@@ -38,15 +38,15 @@ class _TemplatesPageState extends State<TemplatesPage> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Stack(
-        children: [
-          StreamBuilder<List<Plan>>(
-            stream: _stream,
-            builder: (context, snap) {
-              if (snap.hasError) return ErrorBox(snap.error);
-              if (!snap.hasData) return const Loading();
-              final list = snap.data!;
-              return ListView(
+      child: StreamBuilder<List<Plan>>(
+        stream: _stream,
+        builder: (context, snap) {
+          if (snap.hasError) return ErrorBox(snap.error);
+          if (!snap.hasData) return const Loading();
+          final list = snap.data!;
+          return Stack(
+            children: [
+              ListView(
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   const PageHeader(overline: 'Area riservata', title: 'Modelli'),
@@ -74,8 +74,29 @@ class _TemplatesPageState extends State<TemplatesPage> {
                         action: FilledButton(onPressed: _new, child: const Text('Crea modello')),
                       ),
                     ),
-                  for (final t in list)
-                    Padding(
+                  for (final t in list) _tile(t),
+                ],
+              ),
+              if (list.isNotEmpty)
+                Positioned(
+                  right: 20,
+                  bottom: 20,
+                  child: FloatingActionButton.extended(
+                    heroTag: 'newTemplate',
+                    onPressed: _new,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nuovo modello'),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _tile(Plan t) {
+    return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                       child: Panel(
                         padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
@@ -119,23 +140,6 @@ class _TemplatesPageState extends State<TemplatesPage> {
                           ],
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: FloatingActionButton.extended(
-              heroTag: 'newTemplate',
-              onPressed: _new,
-              icon: const Icon(Icons.add),
-              label: const Text('Nuovo modello'),
-            ),
-          ),
-        ],
-      ),
-    );
+                    );
   }
 }

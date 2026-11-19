@@ -19,90 +19,177 @@ class ExercisesPage extends StatefulWidget {
 class _ExercisesPageState extends State<ExercisesPage> {
   String _query = '';
   String? _machine;
+  String? _muscle;
+  Stream<List<Exercise>>? _custom;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.me.coachMode) _custom = Db.customExercisesStream(widget.me.uid);
+  }
+
+  bool _match(Exercise e) {
+    if (_machine != null && e.machine != _machine) return false;
+    if (_muscle != null && e.muscle != _muscle) return false;
+    final q = _query.toLowerCase().trim();
+    if (q.isEmpty) return true;
+    return q.split(RegExp(r'\s+')).every((w) =>
+        e.name.toLowerCase().contains(w) ||
+        e.muscle.toLowerCase().contains(w) ||
+        e.machine.toLowerCase().contains(w));
+  }
+
+  Future<void> _createCustom() async {
+    final ex = await showModalBottomSheet<Exercise>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (_) => _CustomExerciseSheet(initialName: _query.trim()),
+    );
+    if (ex == null || !mounted) return;
+    try {
+      final saved = await Db.addCustomExercise(widget.me.uid, ex);
+      if (!mounted) return;
+      if (widget.pick) {
+        Navigator.pop(context, saved);
+      } else {
+        toast(context, 'Esercizio creato');
+      }
+    } catch (e) {
+      if (mounted) toast(context, 'Errore: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final q = _query.toLowerCase();
-    final list = exerciseLibrary.where((e) {
-      if (_machine != null && e.machine != _machine) return false;
-      if (q.isEmpty) return true;
-      return e.name.toLowerCase().contains(q) || e.muscle.toLowerCase().contains(q);
-    }).toList();
-
-    final body = Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: TextField(
-            onChanged: (v) => setState(() => _query = v),
-            decoration: const InputDecoration(
-              hintText: 'Cerca esercizio o muscolo',
-              prefixIcon: Icon(Icons.search, color: BC.muted),
+    final body = StreamBuilder<List<Exercise>>(
+      stream: _custom,
+      builder: (context, cs) {
+        final custom = (cs.data ?? <Exercise>[]).where(_match).toList();
+        final lib = exerciseLibrary.where(_match).toList();
+        final all = [...custom, ...lib];
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: TextField(
+                onChanged: (v) => setState(() => _query = v),
+                decoration: const InputDecoration(
+                  hintText: 'Cerca: es. "lat presa stretta", "cavi spalle"',
+                  prefixIcon: Icon(Icons.search, color: BC.muted),
+                ),
+              ),
             ),
-          ),
-        ),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              _chip('Tutti', _machine == null, () => setState(() => _machine = null)),
-              for (final m in machineTypes)
-                _chip(m, _machine == m, () => setState(() => _machine = m)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: list.isEmpty
-              ? const EmptyState(
-                  icon: Icons.search_off,
-                  title: 'Nessun esercizio',
-                  text: 'Prova con un altro nome o un altro macchinario.')
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                  itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (c, i) {
-                    final e = list[i];
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _chip('Tutti i muscoli', _muscle == null, () => setState(() => _muscle = null)),
+                  for (final m in muscleGroups)
+                    _chip(m, _muscle == m, () => setState(() => _muscle = _muscle == m ? null : m)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  _chip('Ogni attrezzo', _machine == null, () => setState(() => _machine = null), small: true),
+                  for (final m in machineTypes)
+                    _chip(m, _machine == m, () => setState(() => _machine = _machine == m ? null : m),
+                        small: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                itemCount: all.length + (widget.me.coachMode ? 1 : 0),
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (c, i) {
+                  if (widget.me.coachMode && i == 0) {
                     return Panel(
+                      onTap: _createCustom,
+                      borderColor: BC.steelLight,
+                      color: BC.steelTint,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      onTap: () {
-                        if (widget.pick) {
-                          Navigator.pop(context, e);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => ExerciseDetailPage(me: widget.me, exercise: e)),
-                          );
-                        }
-                      },
                       child: Row(
                         children: [
+                          const Icon(Icons.add, color: BC.steelDark),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(e.name,
-                                    style: const TextStyle(
-                                        fontSize: 15, fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 3),
-                                Text('${e.muscle} · ${e.machine}',
-                                    style: const TextStyle(fontSize: 13, color: BC.muted)),
-                              ],
+                            child: Text(
+                              all.isEmpty && _query.trim().isNotEmpty
+                                  ? 'Crea "${_query.trim()}"'
+                                  : 'Crea esercizio personalizzato',
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600, color: BC.steelDark),
                             ),
                           ),
-                          Icon(widget.pick ? Icons.add_circle_outline : Icons.chevron_right,
-                              color: widget.pick ? BC.steel : BC.muted),
                         ],
                       ),
                     );
-                  },
-                ),
-        ),
-      ],
+                  }
+                  final e = all[i - (widget.me.coachMode ? 1 : 0)];
+                  return Panel(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    onTap: () {
+                      if (widget.pick) {
+                        Navigator.pop(context, e);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ExerciseDetailPage(me: widget.me, exercise: e)),
+                        );
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(e.name,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 3),
+                              Text(
+                                  [e.muscle, e.machine, if (e.timed) 'a tempo', if (e.custom) 'tuo']
+                                      .join(' · '),
+                                  style: const TextStyle(fontSize: 13, color: BC.muted)),
+                            ],
+                          ),
+                        ),
+                        if (e.custom && !widget.pick)
+                          IconButton(
+                            tooltip: 'Elimina',
+                            icon: const Icon(Icons.delete_outline, color: BC.muted, size: 20),
+                            onPressed: () async {
+                              if (await confirm(context, 'Elimina esercizio',
+                                  'Eliminare "${e.name}" dai tuoi esercizi? Le schede che lo usano restano invariate.',
+                                  ok: 'Elimina', danger: true)) {
+                                await Db.deleteCustomExercise(widget.me.uid, e.id);
+                              }
+                            },
+                          )
+                        else
+                          Icon(widget.pick ? Icons.add_circle_outline : Icons.chevron_right,
+                              color: widget.pick ? BC.steel : BC.muted),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
 
     if (widget.pick) {
@@ -118,7 +205,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
     );
   }
 
-  Widget _chip(String label, bool sel, VoidCallback onTap) {
+  Widget _chip(String label, bool sel, VoidCallback onTap, {bool small = false}) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
@@ -126,12 +213,93 @@ class _ExercisesPageState extends State<ExercisesPage> {
         selected: sel,
         onSelected: (_) => onTap(),
         showCheckmark: false,
+        visualDensity: small ? VisualDensity.compact : null,
         labelStyle: TextStyle(
-            color: sel ? Colors.white : BC.ink, fontWeight: FontWeight.w500, fontSize: 13),
-        selectedColor: BC.ink,
+            color: sel ? Colors.white : BC.ink, fontWeight: FontWeight.w500, fontSize: small ? 12 : 13),
+        selectedColor: small ? BC.steel : BC.ink,
         backgroundColor: Colors.white,
-        side: BorderSide(color: sel ? BC.ink : BC.border),
+        side: BorderSide(color: sel ? (small ? BC.steel : BC.ink) : BC.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+}
+
+class _CustomExerciseSheet extends StatefulWidget {
+  final String initialName;
+  const _CustomExerciseSheet({required this.initialName});
+
+  @override
+  State<_CustomExerciseSheet> createState() => _CustomExerciseSheetState();
+}
+
+class _CustomExerciseSheetState extends State<_CustomExerciseSheet> {
+  late final _name = TextEditingController(text: widget.initialName);
+  String _muscle = muscleGroups.first;
+  String _machine = 'Macchina';
+  bool _timed = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Nuovo esercizio',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const Text('Lo vedi solo tu e lo puoi usare in tutte le schede.',
+                style: TextStyle(color: BC.muted, fontSize: 13)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _name,
+              autofocus: widget.initialName.isEmpty,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Nome'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _muscle,
+              decoration: const InputDecoration(labelText: 'Muscolo'),
+              items: [for (final m in muscleGroups) DropdownMenuItem(value: m, child: Text(m))],
+              onChanged: (v) => setState(() => _muscle = v ?? _muscle),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _machine,
+              decoration: const InputDecoration(labelText: 'Attrezzo'),
+              items: [for (final m in machineTypes) DropdownMenuItem(value: m, child: Text(m))],
+              onChanged: (v) => setState(() => _machine = v ?? _machine),
+            ),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Esercizio a tempo', style: TextStyle(fontSize: 14)),
+              subtitle: const Text('Si misura in secondi invece che in ripetizioni',
+                  style: TextStyle(fontSize: 12, color: BC.muted)),
+              value: _timed,
+              onChanged: (v) => setState(() => _timed = v),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                final n = _name.text.trim();
+                if (n.isEmpty) return;
+                Navigator.pop(context, Exercise('', n, _muscle, _machine, timed: _timed, custom: true));
+              },
+              child: const Text('Crea esercizio'),
+            ),
+          ],
+        ),
       ),
     );
   }
