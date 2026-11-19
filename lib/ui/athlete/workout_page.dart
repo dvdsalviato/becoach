@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
+import '../common/exercise_animation.dart';
 import '../common/exercises_page.dart';
 import '../common/widgets.dart';
 
@@ -27,6 +29,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Session? _s;
   Object? _error;
   bool _reorder = false;
+  bool _guided = true; // allenamento guidato serie per serie
   bool _dirty = false;
   bool _closing = false;
   Timer? _saveTimer;
@@ -305,6 +308,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
       appBar: AppBar(
         title: Text(s.dayName),
         actions: [
+          if (!_reorder)
+            IconButton(
+              tooltip: _guided ? 'Vista elenco' : 'Vista guidata',
+              icon: Icon(_guided ? Icons.view_list_outlined : Icons.play_circle_outline),
+              onPressed: () => setState(() => _guided = !_guided),
+            ),
           IconButton(
             tooltip: _reorder ? 'Fine riordino' : 'Riordina esercizi',
             icon: Icon(_reorder ? Icons.check : Icons.swap_vert),
@@ -344,12 +353,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
           ),
         ),
       ),
-      body: _reorder ? _buildReorder(s) : _buildList(s),
+      body: _reorder ? _buildReorder(s) : (_guided ? _buildGuided(s) : _buildList(s)),
       bottomNavigationBar: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_timerEnd != null) _timerBar(),
+            if (_timerEnd != null && (!_guided || _reorder)) _timerBar(),
             _bottomBar(done, total),
           ],
         ),
@@ -431,6 +440,396 @@ class _WorkoutPageState extends State<WorkoutPage> {
             ],
           ),
         );
+  }
+
+  // ---------------- Allenamento guidato ----------------
+
+  /// Ordine di esecuzione delle serie: nei superset alterna gli esercizi serie per serie.
+  List<(int, int)> _queue(Session s) {
+    final q = <(int, int)>[];
+    var i = 0;
+    while (i < s.exercises.length) {
+      final g = s.exercises[i].group;
+      var j = i + 1;
+      if (g.isNotEmpty) {
+        while (j < s.exercises.length && s.exercises[j].group == g) {
+          j++;
+        }
+      }
+      var maxSets = 0;
+      for (var k = i; k < j; k++) {
+        maxSets = math.max(maxSets, s.exercises[k].sets.length);
+      }
+      for (var n = 0; n < maxSets; n++) {
+        for (var k = i; k < j; k++) {
+          if (n < s.exercises[k].sets.length) q.add((k, n));
+        }
+      }
+      i = j;
+    }
+    return q;
+  }
+
+  void _setKg(SessionExercise e, int i, double? v) {
+    setState(() => e.sets[i].kg = v == null ? null : (v < 0 ? 0 : v));
+    _ctrls['${e.key}#$i#kg']?.text = e.sets[i].kg == null ? '' : fmtKg(e.sets[i].kg);
+    _scheduleSave();
+  }
+
+  void _setSecond(SessionExercise e, int i, int? v) {
+    final val = v == null ? null : (v < 0 ? 0 : v);
+    setState(() {
+      if (e.isTimed) {
+        e.sets[i].sec = val;
+      } else {
+        e.sets[i].reps = val;
+      }
+    });
+    _ctrls['${e.key}#$i#${e.isTimed ? 'sec' : 'reps'}']?.text = val?.toString() ?? '';
+    _scheduleSave();
+  }
+
+  void _completeGuided(SessionExercise e, int i) {
+    final set = e.sets[i];
+    if (set.done) return;
+    if (!e.isTimed && set.reps == null) {
+      final t = int.tryParse(e.targetReps.trim());
+      if (t != null) set.reps = t;
+    }
+    _toggleDone(e, i);
+  }
+
+  Widget _buildGuided(Session s) {
+    final q = _queue(s);
+    final pending = q.where((p) => !s.exercises[p.$1].sets[p.$2].done).toList();
+    if (pending.isEmpty) return _guidedDone(s);
+
+    final resting = _timerEnd != null && !_timerWork;
+    final working = _timerEnd != null && _timerWork;
+    final (ei, si) = pending.first;
+    final e = s.exercises[ei];
+    final set = e.sets[si];
+    final letters = _letters(s);
+    final exIndex = ei + 1;
+
+    if (resting) return _guidedRest(s, pending);
+
+    final kgValue = set.kg;
+    final second = e.isTimed ? (set.sec ?? e.targetSec) : set.reps;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        Row(
+          children: [
+            Text('Esercizio $exIndex di ${s.exercises.length}',
+                style: const TextStyle(fontSize: 12.5, color: BC.muted, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (e.group.isNotEmpty) Tag.steel('SUPERSET ${letters[e.group] ?? ''}'),
+          ],
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () => openExercise(context, widget.me,
+              exerciseId: e.exerciseId, name: e.name, machine: e.machine, notes: e.notes, videoUrl: e.videoUrl),
+          child: ExerciseAnimation(exerciseId: e.exerciseId, height: 190, radius: 12),
+        ),
+        const SizedBox(height: 14),
+        Text(e.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Text('Serie ${si + 1} di ${e.sets.length}',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: BC.steel)),
+            const SizedBox(width: 10),
+            Text('obiettivo ${e.isTimed ? fmtSec(e.targetSec) : '${e.targetReps} rip.'}',
+                style: const TextStyle(fontSize: 13, color: BC.muted)),
+          ],
+        ),
+        if (machineHasBrand(e.machine) || e.brand.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _changeMachine(e),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.precision_manufacturing_outlined, size: 16, color: BC.muted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      e.machineLabel.isEmpty ? '${e.machine} · indica la marca' : '${e.machine} · ${e.machineLabel}',
+                      style: const TextStyle(fontSize: 13, color: BC.body),
+                    ),
+                  ),
+                  const Icon(Icons.edit_outlined, size: 15, color: BC.muted),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (si < e.prev.length) ...[
+          const SizedBox(height: 6),
+          Text('La volta scorsa: ${e.prev[si]}', style: const TextStyle(fontSize: 13, color: BC.muted)),
+        ],
+        if (e.notes.trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
+            child: Text.rich(
+              TextSpan(children: [
+                const TextSpan(text: 'Coach: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                TextSpan(text: e.notes),
+              ]),
+              style: const TextStyle(fontSize: 13, color: BC.steelDark, height: 1.35),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        if (working)
+          Center(child: _ring(180, 'Tempo', BC.steel))
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _stepper(
+                  label: 'Kg',
+                  value: kgValue == null ? '—' : fmtKg(kgValue),
+                  onMinus: () => _setKg(e, si, (kgValue ?? 0) - 2.5),
+                  onPlus: () => _setKg(e, si, (kgValue ?? 0) + 2.5),
+                  onEdit: () async {
+                    final v = await askText(context,
+                        title: 'Kg', initial: kgValue == null ? '' : fmtKg(kgValue),
+                        keyboard: const TextInputType.numberWithOptions(decimal: true));
+                    if (v != null) _setKg(e, si, parseNum(v));
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _stepper(
+                  label: e.isTimed ? 'Secondi' : 'Ripetizioni',
+                  value: second == null ? (int.tryParse(e.targetReps.trim())?.toString() ?? '—') : '$second',
+                  onMinus: () => _setSecond(e, si,
+                      (second ?? int.tryParse(e.targetReps.trim()) ?? 0) - (e.isTimed ? 5 : 1)),
+                  onPlus: () => _setSecond(e, si,
+                      (second ?? int.tryParse(e.targetReps.trim()) ?? 0) + (e.isTimed ? 5 : 1)),
+                  onEdit: () async {
+                    final v = await askText(context,
+                        title: e.isTimed ? 'Secondi' : 'Ripetizioni',
+                        initial: second?.toString() ?? '',
+                        keyboard: TextInputType.number);
+                    if (v != null) _setSecond(e, si, parseInt(v));
+                  },
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 16),
+        if (working)
+          OutlinedButton(onPressed: _stopTimer, child: const Text('Ferma il timer'))
+        else if (e.isTimed)
+          FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+            onPressed: () => _startWorkTimer(e, si),
+            icon: const Icon(Icons.timer_outlined),
+            label: Text('Avvia ${fmtSec(second ?? e.targetSec)}'),
+          )
+        else
+          FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+            onPressed: () => _completeGuided(e, si),
+            icon: const Icon(Icons.check),
+            label: const Text('Serie completata'),
+          ),
+        if (e.isTimed && !working)
+          TextButton(
+            onPressed: () => _completeGuided(e, si),
+            child: const Text('Segna come fatta senza timer'),
+          ),
+        if (pending.length > 1) ...[
+          const SectionLabel('Dopo'),
+          for (final p in pending.skip(1).take(3)) _upNext(s, p),
+        ],
+      ],
+    );
+  }
+
+  Widget _guidedRest(Session s, List<(int, int)> pending) {
+    final (ei, si) = pending.first;
+    final e = s.exercises[ei];
+    final set = e.sets[si];
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+      children: [
+        const Center(
+          child: Text('Recupero',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: BC.muted, letterSpacing: 0.5)),
+        ),
+        const SizedBox(height: 14),
+        Center(child: _ring(220, '', BC.graphite)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () {
+                  final end = _timerEnd;
+                  if (end == null) return;
+                  setState(() {
+                    _timerEnd = end.add(const Duration(seconds: 15));
+                    _timerTotal += 15;
+                  });
+                },
+                child: const Text('+15″'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: FilledButton(onPressed: _stopTimer, child: const Text('Salta recupero'))),
+          ],
+        ),
+        const SectionLabel('Prossima serie'),
+        Panel(
+          child: Row(
+            children: [
+              SizedBox(width: 72, height: 54, child: ExerciseAnimation(exerciseId: e.exerciseId, radius: 8, compact: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Serie ${si + 1} di ${e.sets.length} · '
+                      '${set.kg == null ? '' : '${fmtKg(set.kg)} kg · '}'
+                      '${e.isTimed ? fmtSec(set.sec ?? e.targetSec) : '${set.reps ?? e.targetReps} rip.'}',
+                      style: const TextStyle(fontSize: 13, color: BC.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _guidedDone(Session s) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+      children: [
+        const Icon(Icons.emoji_events_outlined, size: 48, color: BC.steel),
+        const SizedBox(height: 12),
+        const Text('Allenamento completato',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        Text('${s.doneSets} serie · ${fmtNum(s.volume.round())} kg sollevati',
+            textAlign: TextAlign.center, style: const TextStyle(color: BC.muted)),
+        const SizedBox(height: 24),
+        FilledButton(onPressed: _finish, child: const Text('Salva e chiudi')),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => setState(() => _guided = false),
+          child: const Text('Rivedi le serie'),
+        ),
+      ],
+    );
+  }
+
+  Widget _upNext(Session s, (int, int) p) {
+    final e = s.exercises[p.$1];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Container(width: 6, height: 6, decoration: const BoxDecoration(color: BC.steelLight, shape: BoxShape.circle)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('${e.name} · serie ${p.$2 + 1}',
+                style: const TextStyle(fontSize: 13.5, color: BC.body)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ring(double size, String label, Color color) {
+    final rem = _remaining;
+    final progress = _timerTotal == 0 ? 0.0 : (rem / _timerTotal).clamp(0.0, 1.0);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 9,
+              color: color,
+              backgroundColor: BC.border,
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(fmtClock(rem),
+                  style: TextStyle(
+                      fontSize: size * 0.22,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+              if (label.isNotEmpty) Text(label, style: const TextStyle(color: BC.muted, fontSize: 13)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepper({
+    required String label,
+    required String value,
+    required VoidCallback onMinus,
+    required VoidCallback onPlus,
+    required VoidCallback onEdit,
+  }) {
+    return Panel(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      child: Column(
+        children: [
+          Text(label.toUpperCase(),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: BC.muted, letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              IconButton(onPressed: onMinus, icon: const Icon(Icons.remove), tooltip: 'Meno'),
+              Expanded(
+                child: InkWell(
+                  onTap: onEdit,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(value,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: [FontFeature.tabularFigures()])),
+                  ),
+                ),
+              ),
+              IconButton(onPressed: onPlus, icon: const Icon(Icons.add), tooltip: 'Più'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildReorder(Session s) {
@@ -534,12 +933,10 @@ class _WorkoutPageState extends State<WorkoutPage> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
                   child: Row(
                     children: [
-                      Container(
+                      SizedBox(
                         width: 56,
-                        height: 40,
-                        decoration:
-                            BoxDecoration(color: BC.graphite, borderRadius: BorderRadius.circular(6)),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                        height: 42,
+                        child: ExerciseAnimation(exerciseId: e.exerciseId, radius: 6, compact: true),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

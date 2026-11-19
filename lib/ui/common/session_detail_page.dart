@@ -183,7 +183,8 @@ class SessionDetailPage extends StatelessWidget {
 class SessionTile extends StatelessWidget {
   final Session s;
   final VoidCallback onTap;
-  const SessionTile({super.key, required this.s, required this.onTap});
+  final bool showAthlete;
+  const SessionTile({super.key, required this.s, required this.onTap, this.showAthlete = false});
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +197,8 @@ class SessionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.dayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(showAthlete ? '${s.athleteName} · ${s.dayName}' : s.dayName,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 3),
                 Text(
                   '${s.startedAt == null ? '' : relDay(s.startedAt!)} · ${s.doneSets} serie · ${fmtNum(s.volume.round())} kg',

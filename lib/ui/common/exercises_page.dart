@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../data/exercise_library.dart';
 import '../../db.dart';
 import '../../models.dart';
+import '../../google.dart';
 import '../../theme.dart';
+import 'exercise_animation.dart';
 import 'widgets.dart';
 
 /// Libreria esercizi. In modalità [pick] restituisce l'esercizio scelto.
@@ -152,6 +155,12 @@ class _ExercisesPageState extends State<ExercisesPage> {
                     },
                     child: Row(
                       children: [
+                        SizedBox(
+                          width: 56,
+                          height: 42,
+                          child: ExerciseAnimation(exerciseId: e.id, radius: 6, compact: true),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,6 +338,8 @@ class ExerciseDetailPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
         children: [
+          ExerciseAnimation(exerciseId: exercise.id, height: 220, radius: 12),
+          const SizedBox(height: 16),
           Text(exercise.name,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
           const SizedBox(height: 4),
@@ -336,51 +347,28 @@ class ExerciseDetailPage extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _info('Macchinario', exercise.machine)),
+              Expanded(child: _info('Attrezzo', exercise.machine)),
               const SizedBox(width: 8),
               Expanded(child: _info('Muscolo', exercise.muscle)),
             ],
           ),
-          const SectionLabel('Video'),
-          if (coachId == null || coachId.isEmpty)
-            _videoTile(context, 'Video standard', 'Esecuzione corretta su YouTube',
-                exercise.standardVideoUrl, primary: true)
-          else
+          if (coachId != null && coachId.isNotEmpty)
             StreamBuilder<String?>(
               stream: Db.coachVideoStream(coachId, exercise.id),
               builder: (c, s) {
-                final coachUrl =
-                    planVideoUrl.isNotEmpty ? planVideoUrl : (s.data ?? '');
+                final coachUrl = planVideoUrl.isNotEmpty ? planVideoUrl : (s.data ?? '');
+                if (coachUrl.isEmpty && !me.coachMode) return const SizedBox.shrink();
                 return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (coachUrl.isNotEmpty) ...[
-                      _videoTile(context, 'Video del coach', coachUrl, coachUrl, primary: true),
-                      const SizedBox(height: 8),
-                    ],
-                    _videoTile(context, 'Video standard', 'Esecuzione corretta su YouTube',
-                        exercise.standardVideoUrl,
-                        primary: coachUrl.isEmpty),
+                    const SectionLabel('Video del coach'),
+                    if (coachUrl.isNotEmpty)
+                      _videoTile(context, me.coachMode ? 'Il tuo video' : 'Video del coach',
+                          'Tocca per guardarlo', coachUrl,
+                          primary: true),
                     if (me.coachMode) ...[
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final url = await askText(context,
-                              title: 'Tuo video per ${exercise.name}',
-                              initial: s.data ?? '',
-                              hint: 'Link YouTube, Drive…',
-                              keyboard: TextInputType.url);
-                          if (url == null) return;
-                          await Db.setCoachVideo(me.uid, exercise.id, url);
-                          if (context.mounted) {
-                            toast(context,
-                                url.trim().isEmpty ? 'Video rimosso' : 'Video salvato');
-                          }
-                        },
-                        icon: const Icon(Icons.link, size: 18),
-                        label: Text((s.data ?? '').isEmpty
-                            ? 'Aggiungi il tuo video'
-                            : 'Cambia il tuo video'),
-                      ),
+                      if (coachUrl.isNotEmpty) const SizedBox(height: 8),
+                      _CoachVideoButtons(me: me, exercise: exercise, hasVideo: (s.data ?? '').isNotEmpty),
                     ],
                   ],
                 );
@@ -463,4 +451,97 @@ void openExercise(BuildContext context, AppUser me,
           ExerciseDetailPage(me: me, exercise: ex, notes: notes, planVideoUrl: videoUrl),
     ),
   );
+}
+
+
+/// Il coach carica il suo video dalla galleria (va sul suo Google Drive) o incolla un link.
+class _CoachVideoButtons extends StatefulWidget {
+  final AppUser me;
+  final Exercise exercise;
+  final bool hasVideo;
+  const _CoachVideoButtons({required this.me, required this.exercise, required this.hasVideo});
+
+  @override
+  State<_CoachVideoButtons> createState() => _CoachVideoButtonsState();
+}
+
+class _CoachVideoButtonsState extends State<_CoachVideoButtons> {
+  bool _busy = false;
+  String _status = '';
+
+  Future<void> _fromGallery() async {
+    final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (file == null) return;
+    setState(() {
+      _busy = true;
+      _status = 'Caricamento su Google Drive…';
+    });
+    try {
+      final bytes = await file.readAsBytes();
+      final mb = bytes.length / (1024 * 1024);
+      if (mb > 200) throw GoogleException('Il video supera 200 MB');
+      final ext = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : 'mp4';
+      final mime = ext == 'mov' ? 'video/quicktime' : (ext == 'webm' ? 'video/webm' : 'video/mp4');
+      final url = await Google.uploadVideo(bytes, 'BeCoach - ${widget.exercise.name}.$ext', mime: mime);
+      await Db.setCoachVideo(widget.me.uid, widget.exercise.id, url);
+      if (mounted) toast(context, 'Video caricato');
+    } catch (e) {
+      if (mounted) toast(context, 'Caricamento non riuscito: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _status = '';
+        });
+      }
+    }
+  }
+
+  Future<void> _link() async {
+    final url = await askText(context,
+        title: 'Link del video', hint: 'YouTube, Drive…', keyboard: TextInputType.url);
+    if (url == null) return;
+    await Db.setCoachVideo(widget.me.uid, widget.exercise.id, url);
+    if (mounted) toast(context, url.trim().isEmpty ? 'Video rimosso' : 'Video salvato');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          onPressed: _busy ? null : _fromGallery,
+          icon: _busy
+              ? const SizedBox(
+                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.video_library_outlined, size: 18),
+          label: Text(_busy ? _status : (widget.hasVideo ? 'Sostituisci con un video dalla galleria' : 'Carica un video dalla galleria')),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: _busy ? null : _link,
+                child: const Text('Oppure incolla un link'),
+              ),
+            ),
+            if (widget.hasVideo)
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        await Db.setCoachVideo(widget.me.uid, widget.exercise.id, '');
+                        if (context.mounted) toast(context, 'Video rimosso');
+                      },
+                child: const Text('Rimuovi', style: TextStyle(color: BC.danger)),
+              ),
+          ],
+        ),
+        const Text('Il video viene salvato sul tuo Google Drive e lo vedono solo i tuoi clienti con il link.',
+            style: TextStyle(fontSize: 12, color: BC.muted, height: 1.35)),
+      ],
+    );
+  }
 }

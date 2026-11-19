@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import 'data/exercise_library.dart';
+import 'google.dart';
 import 'models.dart';
 
 class Db {
@@ -19,11 +19,9 @@ class Db {
 
   // ---------- Accesso ----------
 
-  static final GoogleSignIn _google = GoogleSignIn(scopes: ['email']);
-
   /// Accesso con Google. Restituisce false se l'utente annulla.
   static Future<bool> signInWithGoogle() async {
-    final account = await _google.signIn();
+    final account = await Google.signIn.signIn();
     if (account == null) return false;
     final auth = await account.authentication;
     final cred = GoogleAuthProvider.credential(
@@ -36,7 +34,7 @@ class Db {
 
   static Future<void> signOut() async {
     try {
-      await _google.signOut();
+      await Google.signIn.signOut();
     } catch (_) {}
     await FirebaseAuth.instance.signOut();
   }
@@ -350,6 +348,7 @@ class Db {
         brand: (lastEx != null && lastEx.brand.isNotEmpty) ? lastEx.brand : pe.brand,
         model: (lastEx != null && lastEx.brand.isNotEmpty) ? lastEx.model : pe.model,
         group: pe.group,
+        muscle: pe.muscle.isNotEmpty ? pe.muscle : (exerciseById(pe.exerciseId)?.muscle ?? ''),
         prev: prev,
         sets: sets,
       ));
@@ -384,4 +383,48 @@ class Db {
       });
 
   static Future<void> deleteSession(String id) => sessions.doc(id).delete();
+
+  // ---------- Agenda ----------
+
+  // Gli appuntamenti stanno nell'area riservata del coach (users/{coach}/appointments).
+  static CollectionReference<Map<String, dynamic>> appointmentsRef(String coachId) =>
+      users.doc(coachId).collection('appointments');
+
+  static Stream<List<Appointment>> appointmentsStream(String coachId) => appointmentsRef(coachId)
+      .snapshots()
+      .map((q) => q.docs.map(Appointment.fromDoc).toList()..sort((a, b) => a.start.compareTo(b.start)));
+
+  static Future<void> saveAppointment(Appointment a) async {
+    final data = a.toMap()..['updatedAt'] = FieldValue.serverTimestamp();
+    if (a.id.isEmpty) {
+      final ref = await appointmentsRef(a.coachId).add(data);
+      a.id = ref.id;
+    } else {
+      await appointmentsRef(a.coachId).doc(a.id).set(data);
+    }
+  }
+
+  static Future<void> deleteAppointment(Appointment a) => appointmentsRef(a.coachId).doc(a.id).delete();
+
+  // ---------- Rubrica ----------
+
+  static CollectionReference<Map<String, dynamic>> contactsRef(String coachId) =>
+      users.doc(coachId).collection('contacts');
+
+  static Stream<List<Contact>> contactsStream(String coachId) => contactsRef(coachId).snapshots().map((q) {
+        final l = q.docs.map(Contact.fromDoc).toList();
+        l.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+        return l;
+      });
+
+  static Future<void> saveContact(String coachId, Contact c) async {
+    if (c.id.isEmpty) {
+      final ref = await contactsRef(coachId).add(c.toMap());
+      c.id = ref.id;
+    } else {
+      await contactsRef(coachId).doc(c.id).set(c.toMap());
+    }
+  }
+
+  static Future<void> deleteContact(String coachId, String id) => contactsRef(coachId).doc(id).delete();
 }

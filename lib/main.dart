@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'db.dart';
 import 'models.dart';
@@ -33,6 +34,24 @@ class BeCoachApp extends StatelessWidget {
       title: 'BeCoach',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      locale: const Locale('it'),
+      supportedLocales: const [Locale('it')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // Android 15 disegna l'app sotto i tasti di navigazione: teniamo tutto
+      // il contenuto (pagine, fogli, finestre) sopra di loro.
+      builder: (context, child) => ColoredBox(
+        color: Colors.white,
+        child: SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       home: const AuthGate(),
     );
   }

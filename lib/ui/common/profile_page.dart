@@ -5,6 +5,8 @@ import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
+import '../coach/clients_page.dart';
+import 'session_detail_page.dart';
 import 'widgets.dart';
 
 /// Profilo: per il coach dati professionali e numeri dell'attività,
@@ -45,8 +47,7 @@ class ProfilePage extends StatelessWidget {
             _CoachStats(me: me),
             const SectionLabel('Codice invito per i clienti'),
             _InviteCodePanel(me: me),
-            const SectionLabel('Dati professionali'),
-            _CoachForm(key: ValueKey('cf-${me.uid}'), me: me),
+            _ContactsSection(me: me),
           ] else ...[
             const SectionLabel('Il tuo coach'),
             _CoachLink(me: me),
@@ -118,11 +119,29 @@ class _CoachStatsState extends State<_CoachStats> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _stat('Clienti', '${clients.length}')),
+                    Expanded(
+                      child: _stat('Clienti', '${clients.length}', () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => Scaffold(appBar: AppBar(), body: ClientsPage(me: widget.me)),
+                          ),
+                        );
+                      }),
+                    ),
                     const SizedBox(width: 8),
-                    Expanded(child: _stat('Allenamenti 7 gg', '$week')),
+                    Expanded(
+                      child: _stat('Allenamenti 7 gg', '$week', () {
+                        _openSessions('Allenamenti degli ultimi 7 giorni', (s) =>
+                            !s.isLive && s.startedAt != null && s.startedAt!.isAfter(weekAgo));
+                      }),
+                    ),
                     const SizedBox(width: 8),
-                    Expanded(child: _stat('Live ora', '$live')),
+                    Expanded(
+                      child: _stat('Live ora', '$live', () {
+                        _openSessions('In allenamento ora', (s) => s.isLive);
+                      }),
+                    ),
                   ],
                 ),
                 if (noPlan > 0 || inactive > 0) ...[
@@ -159,7 +178,17 @@ class _CoachStatsState extends State<_CoachStats> {
         ],
       );
 
-  Widget _stat(String label, String value) => Panel(
+  void _openSessions(String title, bool Function(Session) test) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CoachSessionsPage(me: widget.me, title: title, test: test),
+      ),
+    );
+  }
+
+  Widget _stat(String label, String value, VoidCallback onTap) => Panel(
+        onTap: onTap,
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,51 +199,218 @@ class _CoachStatsState extends State<_CoachStats> {
                 style: const TextStyle(
                     fontSize: 10.5, fontWeight: FontWeight.w600, color: BC.muted, letterSpacing: 0.4)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                const Icon(Icons.chevron_right, size: 18, color: BC.muted),
+              ],
+            ),
           ],
         ),
       );
 }
 
-class _CoachForm extends StatefulWidget {
+class _CoachSessionsPage extends StatefulWidget {
   final AppUser me;
-  const _CoachForm({super.key, required this.me});
+  final String title;
+  final bool Function(Session) test;
+  const _CoachSessionsPage({required this.me, required this.title, required this.test});
 
   @override
-  State<_CoachForm> createState() => _CoachFormState();
+  State<_CoachSessionsPage> createState() => _CoachSessionsPageState();
 }
 
-class _CoachFormState extends State<_CoachForm> {
-  late final _name = TextEditingController(text: widget.me.name);
-  late final _business = TextEditingController(text: widget.me.businessName);
-  late final _gyms = TextEditingController(text: widget.me.gyms);
-  late final _spec = TextEditingController(text: widget.me.specialties);
-  late final _phone = TextEditingController(text: widget.me.phone);
-  bool _dirty = false;
+class _CoachSessionsPageState extends State<_CoachSessionsPage> {
+  late final Stream<List<Session>> _stream = Db.sessionsForCoach(widget.me.uid);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: StreamBuilder<List<Session>>(
+        stream: _stream,
+        builder: (context, snap) {
+          if (snap.hasError) return ErrorBox(snap.error);
+          if (!snap.hasData) return const Loading();
+          final list = snap.data!.where(widget.test).toList();
+          if (list.isEmpty) {
+            return const EmptyState(
+                icon: Icons.history, title: 'Nessun allenamento', text: 'Qui non c\'è ancora niente.');
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (c, i) => SessionTile(
+              s: list[i],
+              showAthlete: true,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SessionDetailPage(me: widget.me, sessionId: list[i].id)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------- Rubrica clienti ----------------
+
+class _ContactsSection extends StatefulWidget {
+  final AppUser me;
+  const _ContactsSection({required this.me});
+
+  @override
+  State<_ContactsSection> createState() => _ContactsSectionState();
+}
+
+class _ContactsSectionState extends State<_ContactsSection> {
+  late final Stream<List<Contact>> _stream = Db.contactsStream(widget.me.uid);
+  String _q = '';
+
+  void _edit([Contact? c]) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (_) => _ContactSheet(coachId: widget.me.uid, contact: c ?? Contact()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Contact>>(
+      stream: _stream,
+      builder: (context, snap) {
+        final all = snap.data ?? [];
+        final q = _q.toLowerCase();
+        final list = all
+            .where((c) => q.isEmpty || c.fullName.toLowerCase().contains(q) || c.phone.contains(q))
+            .toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionLabel('Rubrica clienti · ${all.length}',
+                trailing: TextButton(onPressed: () => _edit(), child: const Text('+ Aggiungi'))),
+            if (all.length > 5)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  onChanged: (v) => setState(() => _q = v),
+                  decoration: const InputDecoration(
+                      hintText: 'Cerca in rubrica', prefixIcon: Icon(Icons.search, color: BC.muted)),
+                ),
+              ),
+            if (all.isEmpty)
+              Panel(
+                onTap: () => _edit(),
+                child: const Text(
+                    'Salva qui nome, telefono e note dei tuoi clienti, anche di chi non usa ancora l\'app.',
+                    style: TextStyle(fontSize: 14, color: BC.body, height: 1.35)),
+              )
+            else
+              Panel(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < list.length; i++)
+                      InkWell(
+                        onTap: () => _edit(list[i]),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: i == 0
+                                ? null
+                                : const Border(top: BorderSide(color: Color(0xFFECEEF0))),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+                          child: Row(
+                            children: [
+                              Avatar(list[i].initials, size: 36),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(list[i].fullName.isEmpty ? 'Senza nome' : list[i].fullName,
+                                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                                    if (list[i].phone.isNotEmpty || list[i].notes.isNotEmpty)
+                                      Text(
+                                        [list[i].phone, list[i].notes]
+                                            .where((e) => e.isNotEmpty)
+                                            .join(' · '),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12.5, color: BC.muted),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (list[i].phone.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'Chiama',
+                                  onPressed: () => openUrl(context, 'tel:${list[i].phone.replaceAll(' ', '')}'),
+                                  icon: const Icon(Icons.call_outlined, color: BC.steel, size: 20),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ContactSheet extends StatefulWidget {
+  final String coachId;
+  final Contact contact;
+  const _ContactSheet({required this.coachId, required this.contact});
+
+  @override
+  State<_ContactSheet> createState() => _ContactSheetState();
+}
+
+class _ContactSheetState extends State<_ContactSheet> {
+  late final c = widget.contact;
+  late final _first = TextEditingController(text: c.firstName);
+  late final _last = TextEditingController(text: c.lastName);
+  late final _phone = TextEditingController(text: c.phone);
+  late final _email = TextEditingController(text: c.email);
+  late final _notes = TextEditingController(text: c.notes);
   bool _busy = false;
 
   @override
   void dispose() {
-    for (final c in [_name, _business, _gyms, _spec, _phone]) {
-      c.dispose();
+    for (final t in [_first, _last, _phone, _email, _notes]) {
+      t.dispose();
     }
     super.dispose();
   }
 
   Future<void> _save() async {
+    if (_first.text.trim().isEmpty && _last.text.trim().isEmpty) {
+      toast(context, 'Scrivi almeno nome o cognome');
+      return;
+    }
     setState(() => _busy = true);
+    c
+      ..firstName = _first.text.trim()
+      ..lastName = _last.text.trim()
+      ..phone = _phone.text.trim()
+      ..email = _email.text.trim()
+      ..notes = _notes.text.trim();
     try {
-      await Db.updateUser(widget.me.uid, {
-        'name': _name.text.trim().isEmpty ? widget.me.name : _name.text.trim(),
-        'businessName': _business.text.trim(),
-        'gyms': _gyms.text.trim(),
-        'specialties': _spec.text.trim(),
-        'phone': _phone.text.trim(),
-      });
-      if (mounted) {
-        setState(() => _dirty = false);
-        toast(context, 'Dati salvati');
-      }
+      await Db.saveContact(widget.coachId, c);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) toast(context, 'Errore: $e');
     } finally {
@@ -222,35 +418,80 @@ class _CoachFormState extends State<_CoachForm> {
     }
   }
 
-  Widget _f(TextEditingController c, String label, {String? hint, TextInputType? kb, int lines = 1}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextField(
-          controller: c,
-          keyboardType: kb,
-          maxLines: lines,
-          minLines: 1,
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (_) {
-            if (!_dirty) setState(() => _dirty = true);
-          },
-          decoration: InputDecoration(labelText: label, hintText: hint),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _f(_name, 'Nome e cognome'),
-        _f(_business, 'Attività / studio', hint: 'Es. Studio Salviato Personal Training'),
-        _f(_gyms, 'Palestre in cui lavori', hint: 'Es. FitClub Padova, Virgin Mestre'),
-        _f(_spec, 'Specializzazioni', hint: 'Es. ipertrofia, powerlifting, ricomposizione', lines: 2),
-        _f(_phone, 'Telefono per i clienti', kb: TextInputType.phone),
-        if (_dirty)
-          FilledButton(onPressed: _busy ? null : _save, child: const Text('Salva')),
-      ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(c.id.isEmpty ? 'Nuovo contatto' : 'Contatto',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                if (c.id.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Elimina',
+                    onPressed: () async {
+                      if (await confirm(context, 'Elimina contatto', 'Eliminare ${c.fullName}?',
+                          ok: 'Elimina', danger: true)) {
+                        await Db.deleteContact(widget.coachId, c.id);
+                        if (context.mounted) Navigator.pop(context);
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline, color: BC.danger),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _first,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Nome'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _last,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(labelText: 'Cognome'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Telefono'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email (facoltativa)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              maxLines: 4,
+              minLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Note'),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: _busy ? null : _save, child: const Text('Salva')),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -545,7 +786,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.1.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.2', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),

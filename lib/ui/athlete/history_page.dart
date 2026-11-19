@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
+import '../common/body_map.dart';
 import '../common/session_detail_page.dart';
 import '../common/widgets.dart';
 
@@ -65,6 +66,8 @@ class HistoryView extends StatelessWidget {
                   Expanded(child: _stat('Ultimi 7 giorni', '$thisWeek')),
                 ],
               ),
+              const SizedBox(height: 8),
+              WeeklyBodyMap(sessions: sessions),
               if (records.isNotEmpty) ...[
                 const SectionLabel('Migliori carichi'),
                 Panel(

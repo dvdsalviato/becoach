@@ -24,6 +24,8 @@ class AppUser {
   final String gyms;
   final String specialties;
   final String phone;
+  final bool googleCalendar; // il coach ha collegato Google Calendar
+  final String googleCalendarEmail;
 
   AppUser({
     required this.uid,
@@ -43,6 +45,8 @@ class AppUser {
     this.gyms = '',
     this.specialties = '',
     this.phone = '',
+    this.googleCalendar = false,
+    this.googleCalendarEmail = '',
   });
 
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -66,6 +70,8 @@ class AppUser {
       gyms: _s(m['gyms']),
       specialties: _s(m['specialties']),
       phone: _s(m['phone']),
+      googleCalendar: m['googleCalendar'] == true,
+      googleCalendarEmail: _s(m['googleCalendarEmail']),
     );
   }
 
@@ -95,11 +101,13 @@ class PlanExercise {
   String brand; // marca del macchinario
   String model; // modello del macchinario
   String group; // id superset: stesso valore = stesso superset
+  String muscle;
 
   PlanExercise({
     required this.exerciseId,
     required this.name,
     this.machine = '',
+    this.muscle = '',
     this.mode = 'reps',
     this.sets = 3,
     this.reps = '10',
@@ -128,12 +136,14 @@ class PlanExercise {
         brand: _s(m['brand']),
         model: _s(m['model']),
         group: _s(m['group']),
+        muscle: _s(m['muscle']),
       );
 
   Map<String, dynamic> toMap() => {
         'exerciseId': exerciseId,
         'name': name,
         'machine': machine,
+        'muscle': muscle,
         'mode': mode,
         'sets': sets,
         'reps': reps,
@@ -298,6 +308,7 @@ class SessionExercise {
   String brand;
   String model;
   String group;
+  String muscle;
   List<String> prev; // "50 × 8" della volta precedente, per serie
   List<SetEntry> sets;
 
@@ -316,6 +327,7 @@ class SessionExercise {
     this.brand = '',
     this.model = '',
     this.group = '',
+    this.muscle = '',
     List<String>? prev,
     List<SetEntry>? sets,
   })  : prev = prev ?? [],
@@ -340,6 +352,7 @@ class SessionExercise {
         brand: _s(m['brand']),
         model: _s(m['model']),
         group: _s(m['group']),
+        muscle: _s(m['muscle']),
         prev: (m['prev'] as List? ?? []).map((e) => e.toString()).toList(),
         sets: (m['sets'] as List? ?? [])
             .whereType<Map>()
@@ -362,6 +375,7 @@ class SessionExercise {
         'brand': brand,
         'model': model,
         'group': group,
+        'muscle': muscle,
         'prev': prev,
         'sets': sets.map((s) => s.toMap()).toList(),
       };
@@ -461,4 +475,116 @@ class Session {
   Duration? get duration => (startedAt != null && finishedAt != null)
       ? finishedAt!.difference(startedAt!)
       : null;
+}
+
+
+// ---------------- Agenda ----------------
+
+class Appointment {
+  String id;
+  String coachId;
+  String clientId; // cliente dell'app (facoltativo)
+  String clientName;
+  String clientEmail;
+  String title;
+  String notes;
+  String category; // vuoto = automatica dal testo
+  DateTime start;
+  int minutes;
+  String googleEventId;
+
+  Appointment({
+    this.id = '',
+    required this.coachId,
+    this.clientId = '',
+    this.clientName = '',
+    this.clientEmail = '',
+    required this.title,
+    this.notes = '',
+    this.category = '',
+    required this.start,
+    this.minutes = 60,
+    this.googleEventId = '',
+  });
+
+  DateTime get end => start.add(Duration(minutes: minutes));
+
+  factory Appointment.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return Appointment(
+      id: doc.id,
+      coachId: _s(m['coachId']),
+      clientId: _s(m['clientId']),
+      clientName: _s(m['clientName']),
+      clientEmail: _s(m['clientEmail']),
+      title: _s(m['title'], 'Appuntamento'),
+      notes: _s(m['notes']),
+      category: _s(m['category']),
+      start: _t(m['start']) ?? DateTime.now(),
+      minutes: _i(m['minutes']) ?? 60,
+      googleEventId: _s(m['googleEventId']),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'coachId': coachId,
+        'clientId': clientId,
+        'clientName': clientName,
+        'clientEmail': clientEmail,
+        'title': title,
+        'notes': notes,
+        'category': category,
+        'start': Timestamp.fromDate(start),
+        'minutes': minutes,
+        'googleEventId': googleEventId,
+      };
+}
+
+// ---------------- Rubrica ----------------
+
+class Contact {
+  String id;
+  String firstName;
+  String lastName;
+  String phone;
+  String email;
+  String notes;
+
+  Contact({
+    this.id = '',
+    this.firstName = '',
+    this.lastName = '',
+    this.phone = '',
+    this.email = '',
+    this.notes = '',
+  });
+
+  String get fullName => [firstName, lastName].where((e) => e.trim().isNotEmpty).join(' ');
+
+  String get initials {
+    final a = firstName.trim().isEmpty ? '' : firstName.trim()[0];
+    final b = lastName.trim().isEmpty ? '' : lastName.trim()[0];
+    final r = (a + b).toUpperCase();
+    return r.isEmpty ? '?' : r;
+  }
+
+  factory Contact.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return Contact(
+      id: doc.id,
+      firstName: _s(m['firstName']),
+      lastName: _s(m['lastName']),
+      phone: _s(m['phone']),
+      email: _s(m['email']),
+      notes: _s(m['notes']),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'firstName': firstName,
+        'lastName': lastName,
+        'phone': phone,
+        'email': email,
+        'notes': notes,
+      };
 }

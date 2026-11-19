@@ -121,22 +121,11 @@ class _AuthPageState extends State<AuthPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                            color: BC.graphite, borderRadius: BorderRadius.circular(10)),
-                        child: const Text('B',
-                            style: TextStyle(
-                                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text('BeCoach',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-                    ],
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.asset('assets/logo.png', width: 132, height: 132),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   Text(_register ? 'Crea il tuo account' : 'Accedi',

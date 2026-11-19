@@ -96,6 +96,7 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
       exerciseId: ex.id,
       name: ex.name,
       machine: ex.machine,
+      muscle: ex.muscle,
       mode: ex.timed ? 'time' : 'reps',
       sets: cardio ? 1 : 3,
       seconds: cardio ? 600 : 30,
