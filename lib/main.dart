@@ -1,11 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'db.dart';
 import 'models.dart';
+import 'firebase_options.dart';
 import 'notifications.dart';
 import 'theme.dart';
 import 'ui/athlete/athlete_shell.dart';
@@ -16,7 +18,7 @@ import 'ui/role_setup_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: kIsWeb ? webFirebaseOptions : null);
   try {
     await Notifs.init();
   } catch (_) {}

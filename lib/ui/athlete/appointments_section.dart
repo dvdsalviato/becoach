@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../calendar_export.dart';
 import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
@@ -97,6 +98,11 @@ class _AthleteAppointmentsState extends State<AthleteAppointments> {
                                   style: const TextStyle(fontSize: 13, color: BC.muted)),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          tooltip: 'Aggiungi al mio calendario',
+                          onPressed: () => addToCalendar(context, a, who: widget.me.coachName ?? 'Coach'),
+                          icon: const Icon(Icons.edit_calendar_outlined, color: BC.steel),
                         ),
                       ],
                     ),

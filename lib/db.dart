@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'data/exercise_library.dart';
 import 'google.dart';
@@ -21,6 +22,10 @@ class Db {
 
   /// Accesso con Google. Restituisce false se l'utente annulla.
   static Future<bool> signInWithGoogle() async {
+    if (kIsWeb) {
+      await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      return true;
+    }
     final account = await Google.signIn.signIn();
     if (account == null) return false;
     final auth = await account.authentication;
@@ -33,9 +38,11 @@ class Db {
   }
 
   static Future<void> signOut() async {
-    try {
-      await Google.signIn.signOut();
-    } catch (_) {}
+    if (!kIsWeb) {
+      try {
+        await Google.signIn.signOut();
+      } catch (_) {}
+    }
     await FirebaseAuth.instance.signOut();
   }
 

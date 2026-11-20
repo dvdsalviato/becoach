@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,16 +49,20 @@ class ProfilePage extends StatelessWidget {
             _InviteCodePanel(me: me),
             const SectionLabel('La tua attività'),
             _CoachForm(key: ValueKey('cf-${me.uid}'), me: me),
-            const SectionLabel('Collegamenti'),
-            _GoogleCalendarPanel(me: me),
+            if (!kIsWeb) ...[
+              const SectionLabel('Collegamenti'),
+              _GoogleCalendarPanel(me: me),
+            ],
           ] else ...[
             const SectionLabel('Il tuo coach'),
             _CoachLink(me: me),
             const SectionLabel('Dati personali'),
             _AthleteForm(key: ValueKey('af-${me.uid}'), me: me),
           ],
-          const SectionLabel('App'),
-          const _AppPanel(),
+          if (!kIsWeb) ...[
+            const SectionLabel('App'),
+            const _AppPanel(),
+          ],
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () async {
@@ -361,7 +366,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.5', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.5.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),

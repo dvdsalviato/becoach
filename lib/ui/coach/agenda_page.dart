@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../db.dart';
@@ -132,7 +133,7 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   Future<void> _loadGoogle({bool force = false}) async {
-    if (!widget.me.googleCalendar) return;
+    if (kIsWeb || !widget.me.googleCalendar) return;
     final (from, to) = _range;
     final key = '${from.toIso8601String()}-${to.toIso8601String()}';
     if (!force && key == _gRange) return;
@@ -289,8 +290,7 @@ class _AgendaPageState extends State<AgendaPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _googleBar(),
-                            const SizedBox(height: 12),
+                            if (!kIsWeb) ...[_googleBar(), const SizedBox(height: 12)],
                             SegmentedButton<int>(
                               segments: const [
                                 ButtonSegment(value: 0, label: Text('Giorno')),
@@ -1016,7 +1016,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
       ..clientEmail = client?.email ?? ''
       ..category = _category;
     String? googleError;
-    if (widget.me.googleCalendar) {
+    if (widget.me.googleCalendar && !kIsWeb) {
       try {
         final desc = [
           if (a.clientName.isNotEmpty) 'Cliente: ${a.clientName}',
@@ -1053,7 +1053,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
         ok: 'Elimina', danger: true)) {
       return;
     }
-    if (a.googleEventId.isNotEmpty && widget.me.googleCalendar) {
+    if (a.googleEventId.isNotEmpty && widget.me.googleCalendar && !kIsWeb) {
       try {
         await Google.deleteEvent(a.googleEventId);
       } catch (_) {}
@@ -1181,7 +1181,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(labelText: 'Note'),
             ),
-            if (widget.me.googleCalendar && client != null && client.email.isNotEmpty) ...[
+            if (!kIsWeb && widget.me.googleCalendar && client != null && client.email.isNotEmpty) ...[
               const SizedBox(height: 4),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1192,7 +1192,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
                     style: const TextStyle(fontSize: 12, color: BC.muted)),
               ),
             ],
-            if (!widget.me.googleCalendar)
+            if (!kIsWeb && !widget.me.googleCalendar)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text('Collega Google Calendar in Agenda per copiarlo sul tuo calendario.',

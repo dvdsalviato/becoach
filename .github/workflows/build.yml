@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -28,7 +30,7 @@ jobs:
       - name: Completa i file Android mancanti (icone, temi)
         run: |
           flutter --version
-          flutter create --platforms=android --org com.dvdsalviato --project-name becoach .
+          flutter create --platforms=android,web --org com.dvdsalviato --project-name becoach .
           rm -rf test
           # usiamo solo i file Gradle in Kotlin (.kts) del repo
           rm -f android/build.gradle android/settings.gradle android/app/build.gradle
@@ -78,3 +80,20 @@ jobs:
             --title "BeCoach ${VERSION} (build ${{ github.run_number }})" \
             --notes-file WHATSNEW.md
 
+      - name: Build web (iPhone)
+        run: flutter build web --release --base-href /becoach/ --build-number=${{ github.run_number }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy-web:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

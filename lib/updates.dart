@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -52,7 +53,7 @@ class Updates {
 
   /// All'avvio: se c'è una versione più nuova propone di aggiornare (una volta per apertura).
   static Future<void> checkOnStart(BuildContext context) async {
-    if (_checkedThisRun) return;
+    if (kIsWeb || _checkedThisRun) return;
     _checkedThisRun = true;
     final info = await latest();
     if (info == null) return;

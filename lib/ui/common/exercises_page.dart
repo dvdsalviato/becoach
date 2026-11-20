@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -514,7 +515,7 @@ class _CoachVideoButtonsState extends State<_CoachVideoButtons> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FilledButton.icon(
+        if (!kIsWeb) FilledButton.icon(
           onPressed: _busy ? null : _fromGallery,
           icon: _busy
               ? const SizedBox(
