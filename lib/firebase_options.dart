@@ -2,10 +2,10 @@ import 'package:firebase_core/firebase_core.dart';
 
 /// Configurazione Firebase dell'app web (Android usa google-services.json).
 const webFirebaseOptions = FirebaseOptions(
-  apiKey: 'WEB_API_KEY',
-  authDomain: 'WEB_AUTH_DOMAIN',
-  projectId: 'WEB_PROJECT_ID',
-  storageBucket: 'WEB_STORAGE_BUCKET',
-  messagingSenderId: 'WEB_SENDER_ID',
-  appId: 'WEB_APP_ID',
+  apiKey: 'AIzaSyC9i61odXhXYRaq7iwYgHxKJPqViby-YVs',
+  authDomain: 'becoach-df114.firebaseapp.com',
+  projectId: 'becoach-df114',
+  storageBucket: 'becoach-df114.firebasestorage.app',
+  messagingSenderId: '81792174065',
+  appId: '1:81792174065:web:19cd4883ebc3b6cd26e650',
 );
