@@ -343,3 +343,17 @@ Future<String?> askText(BuildContext context,
   );
   return res;
 }
+
+
+/// Messaggio comprensibile per gli errori più comuni di Firebase.
+String friendlyError(Object e) {
+  final t = e.toString();
+  if (t.contains('permission-denied') || t.contains('PERMISSION_DENIED')) {
+    return 'Permesso negato da Firebase: le regole di sicurezza non sono aggiornate. '
+        'Il coach deve incollare le regole nuove in Firestore → Regole.';
+  }
+  if (t.contains('unavailable') || t.contains('network')) {
+    return 'Nessuna connessione con il server. Controlla internet e riprova.';
+  }
+  return 'Errore: $t';
+}

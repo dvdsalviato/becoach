@@ -1021,6 +1021,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
   late String _category = a.category;
   bool _invite = true;
   bool _busy = false;
+  String? _error;
 
   static const _durations = [15, 30, 45, 60, 75, 90, 120, 180];
 
@@ -1098,7 +1099,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
       Navigator.pop(context);
       toast(context, googleError == null ? 'Appuntamento salvato' : 'Salvato in BeCoach, ma non su Google: $googleError');
     } catch (e) {
-      if (mounted) toast(context, 'Errore: $e');
+      if (mounted) setState(() => _error = friendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1169,6 +1170,17 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
                     style: TextStyle(fontSize: 15, color: client == null ? BC.disabled : BC.ink)),
               ),
             ),
+            if (client != null && !client.inApp)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Questo cliente non usa l\'app: l\'appuntamento lo vedi solo tu.',
+                    style: TextStyle(fontSize: 12, color: BC.warnFg)),
+              ),
+            if (client != null && client.inApp)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Il cliente lo vedrà nella sua app.', style: TextStyle(fontSize: 12, color: BC.steel)),
+              ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1254,6 +1266,10 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
                 child: Text('Collega Google Calendar in Agenda per copiarlo sul tuo calendario.',
                     style: TextStyle(fontSize: 12, color: BC.muted)),
               ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: BC.danger, fontSize: 13, height: 1.35)),
+            ],
             const SizedBox(height: 16),
             FilledButton(onPressed: _busy ? null : _save, child: Text(_busy ? 'Salvataggio…' : 'Salva')),
           ],

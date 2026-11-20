@@ -37,6 +37,20 @@ class _AthleteAppointmentsState extends State<AthleteAppointments> {
       builder: (context, aps) => StreamBuilder<List<AppointmentRequest>>(
         stream: _reqs,
         builder: (context, rs) {
+          final err = aps.error ?? rs.error;
+          if (err != null) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionLabel('Appuntamenti'),
+                Panel(
+                  color: BC.warnBg,
+                  borderColor: const Color(0xFFF1D9BC),
+                  child: Text(friendlyError(err), style: const TextStyle(fontSize: 13, color: BC.warnFg)),
+                ),
+              ],
+            );
+          }
           final now = DateTime.now();
           final upcoming =
               (aps.data ?? []).where((a) => a.end.isAfter(now)).toList()..sort((a, b) => a.start.compareTo(b.start));
@@ -166,6 +180,7 @@ class _RequestSheetState extends State<_RequestSheet> {
   final _avail = TextEditingController();
   final _note = TextEditingController();
   bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -175,7 +190,10 @@ class _RequestSheetState extends State<_RequestSheet> {
   }
 
   Future<void> _send() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await Db.createRequest(AppointmentRequest(
         coachId: widget.me.coachId!,
@@ -189,7 +207,7 @@ class _RequestSheetState extends State<_RequestSheet> {
       Navigator.pop(context);
       toast(context, 'Richiesta inviata a ${widget.me.coachName ?? 'il coach'}');
     } catch (e) {
-      if (mounted) toast(context, 'Errore: $e');
+      if (mounted) setState(() => _error = friendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -241,8 +259,15 @@ class _RequestSheetState extends State<_RequestSheet> {
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(labelText: 'Note (facoltative)'),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: BC.danger, fontSize: 13, height: 1.35)),
+            ],
             const SizedBox(height: 16),
-            FilledButton(onPressed: _busy ? null : _send, child: const Text('Invia richiesta')),
+            FilledButton(
+              onPressed: _busy ? null : _send,
+              child: Text(_busy ? 'Invio…' : 'Invia richiesta'),
+            ),
           ],
         ),
       ),
