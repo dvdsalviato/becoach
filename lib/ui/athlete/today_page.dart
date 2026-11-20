@@ -4,6 +4,7 @@ import '../../db.dart';
 import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
+import '../common/progress_gauge.dart';
 import '../common/widgets.dart';
 import 'appointments_section.dart';
 import 'join_coach.dart';
@@ -99,6 +100,7 @@ class _TodayPageState extends State<TodayPage> {
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
                   PageHeader(overline: fmtDate(now), title: 'Ciao $firstName'),
+                  if (me.hasCoach) AthleteProgressHero(sessions: sessions, plan: plan),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
@@ -149,7 +151,7 @@ class _TodayPageState extends State<TodayPage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 const Text('Collega il tuo coach',
-                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                                    style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 17, fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 6),
                                 const Text(
                                     'Inserisci il codice che ti ha dato: vedrai qui la scheda che prepara per te.',
@@ -177,7 +179,7 @@ class _TodayPageState extends State<TodayPage> {
                         ] else ...[
                           const SectionLabel('Scheda attiva'),
                           Text(plan.name,
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                              style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
                           if (plan.notes.trim().isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(plan.notes,

@@ -33,7 +33,7 @@ class ProfilePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(me.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(me.name, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(
                       me.coachMode && me.businessName.isNotEmpty ? me.businessName : me.email,
@@ -127,7 +127,7 @@ class _InviteCodePanelState extends State<_InviteCodePanel> {
               children: [
                 Expanded(
                   child: Text(code,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 3)),
+                      style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 3)),
                 ),
                 IconButton(
                   tooltip: 'Copia',
@@ -366,7 +366,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.6.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.7', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),

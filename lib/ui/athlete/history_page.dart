@@ -133,7 +133,7 @@ class HistoryView extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600, color: BC.muted, letterSpacing: 0.5)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            Text(value, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
           ],
         ),
       );

@@ -92,7 +92,7 @@ class Updates {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         title: const Text('È disponibile una nuova versione dell\'app',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
         content: SingleChildScrollView(
           child: Text(
             'BeCoach ${info.version}${notes.isEmpty ? '' : '\n\n$notes'}',

@@ -89,7 +89,7 @@ class _AthleteAppointmentsState extends State<AthleteAppointments> {
                         Container(
                           width: 48,
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(3)),
                           child: Column(
                             children: [
                               Text('${a.start.day}',
@@ -222,7 +222,7 @@ class _RequestSheetState extends State<_RequestSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Richiedi un appuntamento', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const Text('Richiedi un appuntamento', style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             const Text('Il coach sceglie data e ora: lo vedrai qui appena confermato.',
                 style: TextStyle(fontSize: 13, color: BC.muted)),

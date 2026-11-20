@@ -255,7 +255,7 @@ class _CoachHomePageState extends State<CoachHomePage> {
       child: Material(
         color: Colors.white,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10), side: const BorderSide(color: BC.border)),
+            borderRadius: BorderRadius.circular(4), side: const BorderSide(color: BC.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => widget.openTab(2),
@@ -356,7 +356,7 @@ class _CoachHomePageState extends State<CoachHomePage> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Expanded(child: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+                Expanded(child: Text(value, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700))),
                 const Icon(Icons.chevron_right, size: 18, color: BC.muted),
               ],
             ),

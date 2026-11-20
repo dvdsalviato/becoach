@@ -38,17 +38,41 @@ class AdaptiveShell extends StatelessWidget {
       if (!wide) {
         return Scaffold(
           body: stack,
-          bottomNavigationBar: DecoratedBox(
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: BC.border))),
-            child: NavigationBar(
-              selectedIndex: tab,
-              onDestinationSelected: onTab,
-              destinations: [
-                for (final it in items)
-                  NavigationDestination(
-                    icon: Icon(it.icon),
-                    selectedIcon: it.selectedIcon == null ? null : Icon(it.selectedIcon),
-                    label: it.label,
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: BC.border)),
+            ),
+            child: Row(
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => onTab(i),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(4, 9, 4, 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: i == tab ? BC.steel : Colors.transparent, width: 2.5),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(i == tab ? (items[i].selectedIcon ?? items[i].icon) : items[i].icon,
+                                size: 23, color: i == tab ? BC.ink : BC.muted),
+                            const SizedBox(height: 3),
+                            Text(items[i].label,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: i == tab ? FontWeight.w700 : FontWeight.w500,
+                                  color: i == tab ? BC.ink : BC.muted,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -72,12 +96,12 @@ class AdaptiveShell extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(4),
                       child: Image.asset('assets/logo.png', width: 44, height: 44),
                     ),
                     if (extended) ...[
                       const SizedBox(width: 12),
-                      const Text('BeCoach', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                      const Text('BeCoach', style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                     ],
                   ],
                 ),

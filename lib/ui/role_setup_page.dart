@@ -87,7 +87,7 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
           const Text('Benvenuto in BeCoach',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+              style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 24, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           const Text('Come userai l\'app? Potrai attivare anche l\'altro ruolo dal profilo.',
               style: TextStyle(color: BC.muted, height: 1.4)),

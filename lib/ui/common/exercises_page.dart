@@ -233,7 +233,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
         selectedColor: small ? BC.steel : BC.ink,
         backgroundColor: Colors.white,
         side: BorderSide(color: sel ? (small ? BC.steel : BC.ink) : BC.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
     );
   }
@@ -269,7 +269,7 @@ class _CustomExerciseSheetState extends State<_CustomExerciseSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('Nuovo esercizio',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             const Text('Lo vedi solo tu e lo puoi usare in tutte le schede.',
                 style: TextStyle(color: BC.muted, fontSize: 13)),
@@ -346,7 +346,7 @@ class ExerciseDetailPage extends StatelessWidget {
           ExerciseAnimation(exerciseId: exercise.id, height: 220, radius: 12),
           const SizedBox(height: 16),
           Text(exercise.name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+              style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
           const SizedBox(height: 4),
           Text(exercise.muscle, style: const TextStyle(color: BC.muted, fontSize: 14)),
           const SizedBox(height: 16),

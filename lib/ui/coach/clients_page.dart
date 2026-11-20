@@ -77,7 +77,7 @@ Future<void> showInviteSheet(BuildContext context, AppUser me) async {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Invita nell\'app', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const Text('Invita nell\'app', style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text(
               'Il cliente installa BeCoach, si registra come allenato e inserisce questo codice. '
@@ -87,9 +87,9 @@ Future<void> showInviteSheet(BuildContext context, AppUser me) async {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-                color: BC.subtle, borderRadius: BorderRadius.circular(12), border: Border.all(color: BC.border)),
+                color: BC.subtle, borderRadius: BorderRadius.circular(4), border: Border.all(color: BC.border)),
             alignment: Alignment.center,
-            child: Text(code, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: 6)),
+            child: Text(code, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: 6)),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -170,7 +170,7 @@ class _ClientsPageState extends State<ClientsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Aggiungi cliente', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const Text('Aggiungi cliente', style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             Panel(
               onTap: () => Navigator.pop(c, 1),
@@ -277,7 +277,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         tooltip: 'Aggiungi cliente',
                         style: IconButton.styleFrom(
                           backgroundColor: BC.graphite,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         ),
                         onPressed: _add,
                         icon: const Icon(Icons.person_add_alt, color: Colors.white),
@@ -457,7 +457,7 @@ class _ClientsPageState extends State<ClientsPage> {
         selectedColor: BC.ink,
         backgroundColor: Colors.white,
         side: BorderSide(color: sel ? BC.ink : BC.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
     );
   }

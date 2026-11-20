@@ -1,4 +1,8 @@
-## BeCoach 1.6.1
+## BeCoach 1.7 – nuovo stile
 
-- Gli errori nel salvare appuntamenti e richieste compaiono nel pannello, con la spiegazione
-- Nell'appuntamento si vede se il cliente lo riceverà nell'app oppure no
+- Titoli in Space Grotesk, più grandi e decisi
+- Bordi netti e linee sottili al posto delle card arrotondate
+- Barra in basso con la linea sopra la voce attiva
+- Home dell'allenato: tachimetro dell'obiettivo settimanale con l'ago che sale
+- Anelli delle ultime 4 settimane e degli obiettivi (allenamenti, volume, costanza)
+- Il coach vede il tachimetro della settimana nella scheda del cliente

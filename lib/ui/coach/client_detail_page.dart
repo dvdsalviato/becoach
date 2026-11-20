@@ -5,6 +5,8 @@ import '../../models.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../athlete/history_page.dart';
+import '../common/body_map.dart' show weekStart;
+import '../common/progress_gauge.dart';
 import '../common/session_detail_page.dart';
 import '../common/widgets.dart';
 import 'contact_form.dart';
@@ -207,6 +209,28 @@ class _Overview extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
+        Builder(builder: (context) {
+          final planned = (active?.days.length ?? 0) > 0 ? active!.days.length : 3;
+          final w = weekStats(sessions, weekStart());
+          return Panel(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('OBIETTIVO SETTIMANA',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: BC.muted)),
+                    ),
+                    Text('${w.done} di $planned', style: const TextStyle(fontSize: 12.5, color: BC.muted)),
+                  ],
+                ),
+                SpeedGauge(value: w.done / planned, width: 230),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 12),
         Panel(
           child: active == null
               ? Column(
@@ -261,7 +285,7 @@ class _Overview extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                            color: BC.subtle, borderRadius: BorderRadius.circular(8)),
+                            color: BC.subtle, borderRadius: BorderRadius.circular(3)),
                         child: Row(
                           children: [
                             const Icon(Icons.swap_vert, size: 16, color: BC.muted),
@@ -547,7 +571,7 @@ Future<void> newPlanFlow(BuildContext context, AppUser me, AppUser client) async
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           children: [
             const Text('Nuova scheda',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             Panel(
               onTap: () => Navigator.pop(

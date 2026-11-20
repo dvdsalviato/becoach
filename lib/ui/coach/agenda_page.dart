@@ -239,7 +239,7 @@ class _AgendaPageState extends State<AgendaPage> {
       builder: (c) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        title: Text(e.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: Text(e.title, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
         content: Text(
           '${e.allDay ? 'Tutto il giorno' : '${fmtTime(e.start)} – ${fmtTime(e.end)}'}\nDa Google Calendar'
           '${e.description.isNotEmpty ? '\n\n${e.description}' : ''}',
@@ -377,7 +377,7 @@ class _AgendaPageState extends State<AgendaPage> {
         backgroundColor: BC.ground,
         surfaceTintColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(c).size.height * 0.75),
           child: Column(
@@ -393,7 +393,7 @@ class _AgendaPageState extends State<AgendaPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('${_wdShort[day.weekday - 1]} ${day.day} ${_months[day.month - 1]}',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                              style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
                           Text(
                               items.isEmpty
                                   ? 'Nessun appuntamento'
@@ -469,7 +469,7 @@ class _AgendaPageState extends State<AgendaPage> {
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             title: const Text('Google Calendar non risponde',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
             content: Text(
               '$_gError\n\nSe dice che l\'API non è attiva: apri console.cloud.google.com, '
               'scegli il progetto becoach, vai in "API e servizi → Libreria" e attiva Google Calendar API '
@@ -582,11 +582,11 @@ class _AgendaPageState extends State<AgendaPage> {
         child: Material(
           color: isSel ? BC.graphite : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(3),
             side: BorderSide(color: isToday && !isSel ? BC.steel : BC.border),
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(3),
             onTap: () => setState(() => _selected = isSel ? null : day),
             onDoubleTap: () {
               setState(() => _selected = day);
@@ -914,7 +914,7 @@ class _ItemCard extends StatelessWidget {
     return Material(
       color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
         side: const BorderSide(color: BC.border),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1134,7 +1134,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
               children: [
                 Expanded(
                   child: Text(a.id.isEmpty ? 'Nuovo appuntamento' : 'Appuntamento',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
                 ),
                 if (a.id.isNotEmpty)
                   IconButton(
@@ -1155,7 +1155,7 @@ class _AppointmentSheetState extends State<_AppointmentSheet> {
             const SizedBox(height: 12),
             InkWell(
               onTap: _pickClient,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(4),
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Cliente',

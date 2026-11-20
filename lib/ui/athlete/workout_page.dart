@@ -229,7 +229,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text('Macchinario usato',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(e.name, style: const TextStyle(color: BC.muted)),
               const SizedBox(height: 16),
@@ -566,7 +566,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
           child: ExerciseAnimation(exerciseId: e.exerciseId, height: 190, radius: 12),
         ),
         const SizedBox(height: 14),
-        Text(e.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+        Text(e.name, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
         const SizedBox(height: 4),
         Row(
           children: [
@@ -581,7 +581,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
           const SizedBox(height: 8),
           InkWell(
             onTap: () => _changeMachine(e),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(3),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -614,7 +614,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(3)),
             child: Text.rich(
               TextSpan(children: [
                 const TextSpan(text: 'Coach: ', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -762,7 +762,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
         const Icon(Icons.emoji_events_outlined, size: 48, color: BC.steel),
         const SizedBox(height: 12),
         const Text('Allenamento completato',
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+            textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Space Grotesk', fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         Text('${s.doneSets} serie · ${fmtNum(s.volume.round())} kg sollevati',
             textAlign: TextAlign.center, style: const TextStyle(color: BC.muted)),
@@ -849,7 +849,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
               Expanded(
                 child: InkWell(
                   onTap: onEdit,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(3),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Text(value,
@@ -876,7 +876,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-              color: BC.steelTint, borderRadius: BorderRadius.circular(10)),
+              color: BC.steelTint, borderRadius: BorderRadius.circular(4)),
           child: const Row(
             children: [
               Icon(Icons.info_outline, size: 18, color: BC.steelDark),
@@ -1007,12 +1007,12 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(3),
                     onTap: () => _changeMachine(e),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(3),
                         border: Border.all(color: BC.border),
                       ),
                       child: Row(
@@ -1038,7 +1038,7 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
                 Container(
                   margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: BC.steelTint, borderRadius: BorderRadius.circular(3)),
                   child: Text.rich(
                     TextSpan(children: [
                       const TextSpan(text: 'Coach: ', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -1200,11 +1200,11 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
       child: Material(
         color: filled ? BC.steel : Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(3),
           side: BorderSide(color: filled ? BC.steel : BC.border),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(3),
           onTap: onTap,
           child: Icon(icon, size: 20, color: filled ? Colors.white : BC.muted, semanticLabel: label),
         ),

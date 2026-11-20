@@ -64,7 +64,7 @@ class Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
+    final radius = BorderRadius.circular(4);
     return Material(
       color: color ?? Colors.white,
       shape: RoundedRectangleBorder(
@@ -88,16 +88,16 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 16, 2, 8),
+      padding: const EdgeInsets.fromLTRB(2, 20, 2, 8),
       child: Row(
         children: [
           Expanded(
             child: Text(
               text.toUpperCase(),
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.7,
+                letterSpacing: 1.6,
                 color: BC.muted,
               ),
             ),
@@ -227,7 +227,7 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -237,14 +237,18 @@ class PageHeader extends StatelessWidget {
               children: [
                 Text(overline.toUpperCase(),
                     style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.9,
+                        letterSpacing: 1.6,
                         color: BC.muted)),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(title,
                     style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.4)),
+                        fontFamily: BC.display,
+                        fontSize: 34,
+                        height: 1.0,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -1.0)),
               ],
             ),
           ),
@@ -298,7 +302,7 @@ Future<bool> confirm(BuildContext context, String title, String text,
     builder: (c) => AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
-      title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      title: Text(title, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
       content: Text(text, style: const TextStyle(color: BC.body, height: 1.4)),
       actions: [
         TextButton(
@@ -325,7 +329,7 @@ Future<String?> askText(BuildContext context,
     builder: (c) => AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
-      title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      title: Text(title, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 18, fontWeight: FontWeight.w700)),
       content: TextField(
         controller: ctrl,
         autofocus: true,

@@ -129,7 +129,7 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(height: 28),
                   Text(_register ? 'Crea il tuo account' : 'Accedi',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 22, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   const Text('Coach e allenati, nella stessa app.',
                       style: TextStyle(color: BC.muted, fontSize: 14)),

@@ -461,7 +461,7 @@ class _ExerciseSheetState extends State<_ExerciseSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(e.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            Text(e.name, style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             if (e.machine.isNotEmpty) Text(e.machine, style: const TextStyle(color: BC.muted)),
             const SizedBox(height: 14),
             SegmentedButton<String>(

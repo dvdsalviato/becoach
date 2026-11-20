@@ -106,7 +106,7 @@ class _JoinSheetState extends State<_JoinSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Coach: ${widget.coachName}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                style: const TextStyle(fontFamily: 'Space Grotesk', fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             const Text('Per completare il collegamento servono i tuoi dati: li vedrà solo il tuo coach.',
                 style: TextStyle(color: BC.muted, fontSize: 13, height: 1.35)),

@@ -11,22 +11,25 @@ class BC {
   static const steelLight = Color(0xFFA3B4C5);
   static const muted = Color(0xFF5C6068);
   static const body = Color(0xFF3A3E45);
-  static const ground = Color(0xFFF4F5F6);
+  static const ground = Color(0xFFF2F3F4);
   static const surface = Colors.white;
-  static const border = Color(0xFFE2E4E7);
+  static const border = Color(0xFFD9DCE0);
   static const subtle = Color(0xFFF7F8F9);
   static const avatar = Color(0xFFE9ECEF);
   static const disabled = Color(0xFF9A9DA3);
   static const warnFg = Color(0xFF8A4300);
   static const warnBg = Color(0xFFFBEEDD);
   static const danger = Color(0xFFB3261E);
+
+  /// Font dei titoli (incluso nell'app).
+  static const display = 'Space Grotesk';
 }
 
 ThemeData buildTheme() {
   final base = ThemeData(useMaterial3: true, brightness: Brightness.light);
   final text = GoogleFonts.interTextTheme(base.textTheme)
       .apply(bodyColor: BC.ink, displayColor: BC.ink);
-  final radius10 = BorderRadius.circular(10);
+  final radius10 = BorderRadius.circular(4);
 
   return base.copyWith(
     colorScheme: const ColorScheme.light(
@@ -47,8 +50,8 @@ ThemeData buildTheme() {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: GoogleFonts.inter(
-          fontSize: 20, fontWeight: FontWeight.w700, color: BC.ink),
+      titleTextStyle: const TextStyle(
+          fontFamily: BC.display, fontSize: 21, fontWeight: FontWeight.w700, color: BC.ink, letterSpacing: -0.4),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -73,7 +76,7 @@ ThemeData buildTheme() {
         foregroundColor: Colors.white,
         minimumSize: const Size(0, 48),
         shape: RoundedRectangleBorder(borderRadius: radius10),
-        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+        textStyle: const TextStyle(fontFamily: BC.display, fontWeight: FontWeight.w700, fontSize: 15.5, letterSpacing: 0.1),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -132,6 +135,18 @@ ThemeData buildTheme() {
           (s) => s.contains(WidgetState.selected) ? Colors.white : null),
       trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected) ? BC.steel : null),
+    ),
+    chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        side: const BorderSide(color: BC.border),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(10))),
     ),
     progressIndicatorTheme:
         const ProgressIndicatorThemeData(color: BC.steel),
