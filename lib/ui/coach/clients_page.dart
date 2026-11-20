@@ -48,12 +48,12 @@ void openClient(BuildContext context, AppUser me, ClientEntry e) {
   if (e.user != null) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ClientDetailPage(me: me, client: e.user!, contact: e.contact)),
+      pageRoute((_) => ClientDetailPage(me: me, client: e.user!, contact: e.contact)),
     );
   } else {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ContactFormPage(coachId: me.uid, contact: e.contact!)),
+      pageRoute((_) => ContactFormPage(coachId: me.uid, contact: e.contact!)),
     );
   }
 }
@@ -111,8 +111,7 @@ Future<Contact?> newClientFlow(BuildContext context, AppUser me, {String name = 
   final parts = name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
   return Navigator.push<Contact>(
     context,
-    MaterialPageRoute(
-      builder: (_) => ContactFormPage(
+    pageRoute((_) => ContactFormPage(
         coachId: me.uid,
         contact: Contact(
           firstName: parts.isEmpty ? '' : parts.first,
@@ -140,6 +139,9 @@ class _ClientsPageState extends State<ClientsPage> {
   String _query = '';
   int _filter = 0; // 0 tutti, 1 in allenamento, 2 nell'app, 3 solo rubrica
   final Set<String> _syncing = {};
+  String? _selKey; // cliente aperto nel pannello a destra (solo schermi larghi)
+
+  static String keyOf(ClientEntry e) => e.user?.uid ?? 'c:${e.contact?.id ?? ''}';
 
   @override
   void dispose() {
@@ -261,7 +263,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   return a.name.toLowerCase().compareTo(b.name.toLowerCase());
                 });
 
-              return ListView(
+              final listView = ListView(
                 controller: widget.scroll,
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
@@ -336,6 +338,21 @@ class _ClientsPageState extends State<ClientsPage> {
                       ),
                 ],
               );
+              return LayoutBuilder(builder: (context, c) {
+                if (c.maxWidth < wideBreakpoint - 100) return listView;
+                ClientEntry? sel;
+                for (final e in all) {
+                  if (keyOf(e) == _selKey) sel = e;
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(width: 420, child: listView),
+                    const VerticalDivider(width: 1, thickness: 1, color: BC.border),
+                    Expanded(child: _detail(sel)),
+                  ],
+                );
+              });
             },
           ),
         ),
@@ -343,7 +360,29 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
+  Widget _detail(ClientEntry? sel) {
+    if (sel == null) {
+      return const EmptyState(
+        icon: Icons.person_search_outlined,
+        title: 'Seleziona un cliente',
+        text: 'Scegli un cliente dall\'elenco per vedere scheda, storico e anagrafica.',
+      );
+    }
+    if (sel.user != null) {
+      return ClientDetailPage(key: ValueKey(keyOf(sel)), me: widget.me, client: sel.user!, contact: sel.contact);
+    }
+    return Scaffold(
+      key: ValueKey(keyOf(sel)),
+      appBar: AppBar(title: Text(sel.name), automaticallyImplyLeading: false),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+        children: [ContactForm(coachId: widget.me.uid, contact: sel.contact!, showDelete: false)],
+      ),
+    );
+  }
+
   Widget _row(ClientEntry e, Set<String> liveIds, Map<String, DateTime> lastBy) {
+    final selected = _selKey == keyOf(e) && isWide(context);
     final live = e.user != null && liveIds.contains(e.user!.uid);
     final last = e.user == null ? null : lastBy[e.user!.uid];
     final sub = [
@@ -353,7 +392,15 @@ class _ClientsPageState extends State<ClientsPage> {
     ].join(' · ');
     return Panel(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      onTap: () => openClient(context, widget.me, e),
+      color: selected ? BC.steelTint : null,
+      borderColor: selected ? BC.steel : null,
+      onTap: () {
+        if (isWide(context)) {
+          setState(() => _selKey = keyOf(e));
+        } else {
+          openClient(context, widget.me, e);
+        }
+      },
       child: Row(
         children: [
           Avatar(e.initials),

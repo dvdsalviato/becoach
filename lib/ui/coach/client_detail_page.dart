@@ -176,7 +176,7 @@ class _Overview extends StatelessWidget {
             borderColor: BC.graphite,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => SessionDetailPage(me: me, sessionId: live.id)),
+              pageRoute((_) => SessionDetailPage(me: me, sessionId: live.id)),
             ),
             child: Row(
               children: [
@@ -451,8 +451,7 @@ class _PlansTab extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => PlanEditorPage(
+                      pageRoute((_) => PlanEditorPage(
                             me: me, plan: p.copy(), isTemplate: false, clientName: client.name),
                       ),
                     ),
@@ -610,8 +609,7 @@ Future<void> newPlanFlow(BuildContext context, AppUser me, AppUser client) async
   if (picked == null || !context.mounted) return;
   await Navigator.push(
     context,
-    MaterialPageRoute(
-      builder: (_) =>
+    pageRoute((_) =>
           PlanEditorPage(me: me, plan: picked, isTemplate: false, clientName: client.name),
     ),
   );

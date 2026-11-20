@@ -112,8 +112,7 @@ class HistoryView extends StatelessWidget {
                   s: s,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => SessionDetailPage(me: me, sessionId: s.id)),
+                    pageRoute((_) => SessionDetailPage(me: me, sessionId: s.id)),
                   ),
                 ),
                 const SizedBox(height: 8),

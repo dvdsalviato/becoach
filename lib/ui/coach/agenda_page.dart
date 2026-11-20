@@ -568,15 +568,112 @@ class _AgendaPageState extends State<AgendaPage> {
     final (start, _) = _range;
     final today = _day(DateTime.now());
     final sel = _selected;
-    return Column(
+    final wide = isWide(context);
+    final cellH = wide ? 108.0 : 52.0;
+
+    Widget cell(DateTime day) {
+      final inMonth = day.month == _anchor.month;
+      final dayItems = itemsOf(day);
+      final isSel = sel != null && _same(day, sel);
+      final isToday = _same(day, today);
+      final fg = isSel ? Colors.white : (inMonth ? BC.ink : BC.disabled);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Material(
+          color: isSel ? BC.graphite : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: isToday && !isSel ? BC.steel : BC.border),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _selected = isSel ? null : day),
+            onDoubleTap: () {
+              setState(() => _selected = day);
+              _dayPopup(day, dayItems, clients);
+            },
+            child: SizedBox(
+              height: cellH,
+              child: wide
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${day.day}',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                                  color: fg)),
+                          const SizedBox(height: 3),
+                          for (final it in dayItems.take(3))
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 3,
+                                    height: 13,
+                                    decoration: BoxDecoration(
+                                        color: it.category.color, borderRadius: BorderRadius.circular(2)),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      '${it.allDay ? '' : '${fmtTime(it.start)} '}${it.title}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 11, color: isSel ? Colors.white : BC.body),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (dayItems.length > 3)
+                            Text('+${dayItems.length - 3} altri',
+                                style: TextStyle(fontSize: 10.5, color: isSel ? Colors.white70 : BC.muted)),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('${day.day}',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: isToday ? FontWeight.w700 : FontWeight.w500, color: fg)),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (final it in dayItems.take(3))
+                              Container(
+                                width: 10,
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                    color: it.category.color, borderRadius: BorderRadius.circular(2)),
+                              ),
+                            if (dayItems.length > 3)
+                              Text('+', style: TextStyle(fontSize: 10, height: 0.6, color: isSel ? Colors.white : BC.muted)),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final grid = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            for (final l in _wdLetter)
+            for (var i = 0; i < 7; i++)
               Expanded(
                 child: Center(
-                  child: Text(l,
+                  child: Text(wide ? _wdShort[i] : _wdLetter[i],
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: BC.muted)),
                 ),
               ),
@@ -588,85 +685,44 @@ class _AgendaPageState extends State<AgendaPage> {
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
               children: [
-                for (var d = 0; d < 7; d++)
-                  Expanded(
-                    child: Builder(builder: (_) {
-                      final day = start.add(Duration(days: w * 7 + d));
-                      final inMonth = day.month == _anchor.month;
-                      final dayItems = itemsOf(day);
-                      final isSel = sel != null && _same(day, sel);
-                      final isToday = _same(day, today);
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Material(
-                          color: isSel ? BC.graphite : Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(color: isToday && !isSel ? BC.steel : BC.border),
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () => setState(() => _selected = isSel ? null : day),
-                            onDoubleTap: () {
-                              setState(() => _selected = day);
-                              _dayPopup(day, dayItems, clients);
-                            },
-                            child: SizedBox(
-                              height: 52,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('${day.day}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                                        color: isSel
-                                            ? Colors.white
-                                            : (inMonth ? BC.ink : BC.disabled),
-                                      )),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      for (final it in dayItems.take(3))
-                                        Container(
-                                          width: 10,
-                                          height: 4,
-                                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                                          decoration: BoxDecoration(
-                                            color: it.category.color,
-                                            borderRadius: BorderRadius.circular(2),
-                                          ),
-                                        ),
-                                      if (dayItems.length > 3)
-                                        Text('+',
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                height: 0.6,
-                                                color: isSel ? Colors.white : BC.muted)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
+                for (var d = 0; d < 7; d++) Expanded(child: cell(start.add(Duration(days: w * 7 + d)))),
               ],
             ),
           ),
-        if (sel != null) ...[
-          SectionLabel(
-            '${_wdShort[sel.weekday - 1]} ${sel.day} ${_months[sel.month - 1]}',
-            trailing: TextButton(
-              onPressed: () => _openEditor(clients, day: sel),
-              child: const Text('+ Aggiungi'),
-            ),
-          ),
-          _itemsColumn(itemsOf(sel), clients),
-        ],
+      ],
+    );
+
+    final dayPanel = sel == null
+        ? (wide
+            ? const Padding(
+                padding: EdgeInsets.only(top: 24),
+                child: Text('Tocca un giorno per vederne gli appuntamenti',
+                    style: TextStyle(color: BC.muted, fontSize: 13)),
+              )
+            : const SizedBox.shrink())
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionLabel(
+                '${_wdShort[sel.weekday - 1]} ${sel.day} ${_months[sel.month - 1]}',
+                trailing: TextButton(
+                  onPressed: () => _openEditor(clients, day: sel),
+                  child: const Text('+ Aggiungi'),
+                ),
+              ),
+              _itemsColumn(itemsOf(sel), clients),
+            ],
+          );
+
+    if (!wide) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [grid, dayPanel]);
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: grid),
+        const SizedBox(width: 24),
+        SizedBox(width: 340, child: dayPanel),
       ],
     );
   }

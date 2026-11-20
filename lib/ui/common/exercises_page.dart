@@ -151,7 +151,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
                       } else {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ExerciseDetailPage(me: widget.me, exercise: e)),
+                          pageRoute((_) => ExerciseDetailPage(me: widget.me, exercise: e)),
                         );
                       }
                     },
@@ -451,8 +451,7 @@ void openExercise(BuildContext context, AppUser me,
   final ex = exerciseById(exerciseId) ?? Exercise(exerciseId, name, '—', machine.isEmpty ? '—' : machine);
   Navigator.push(
     context,
-    MaterialPageRoute(
-      builder: (_) =>
+    pageRoute((_) =>
           ExerciseDetailPage(me: me, exercise: ex, notes: notes, planVideoUrl: videoUrl),
     ),
   );

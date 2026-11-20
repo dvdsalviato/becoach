@@ -88,7 +88,7 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
   Future<void> _addExercise(PlanDay day) async {
     final ex = await Navigator.push<Exercise>(
       context,
-      MaterialPageRoute(builder: (_) => ExercisesPage(me: widget.me, pick: true)),
+      pageRoute((_) => ExercisesPage(me: widget.me, pick: true)),
     );
     if (ex == null || !mounted) return;
     final cardio = ex.muscle == 'Cardio';

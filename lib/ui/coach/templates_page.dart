@@ -22,8 +22,7 @@ class _TemplatesPageState extends State<TemplatesPage> {
   void _open(Plan t) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-          builder: (_) => PlanEditorPage(me: widget.me, plan: t, isTemplate: true)),
+      pageRoute((_) => PlanEditorPage(me: widget.me, plan: t, isTemplate: true)),
     );
   }
 

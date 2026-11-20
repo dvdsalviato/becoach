@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models.dart';
 import '../../notifications.dart';
 import '../../updates.dart';
+import '../common/adaptive_shell.dart';
 import '../common/back_handler.dart';
 import '../common/exercises_page.dart';
 import '../common/profile_page.dart';
@@ -43,30 +44,18 @@ class _AthleteShellState extends State<AthleteShell> {
       tab: _tab,
       setTab: (i) => setState(() => _tab = i),
       homeScroll: _homeScroll,
-      child: Scaffold(
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          TodayPage(me: me, scroll: _homeScroll),
-          HistoryPage(me: me),
-          ExercisesPage(me: me),
-          ProfilePage(key: ValueKey('p-${me.uid}-${me.coachId}'), me: me),
+      child: AdaptiveShell(
+        tab: _tab,
+        onTab: (i) => setState(() => _tab = i),
+        items: [
+          ShellItem(icon: Icons.fitness_center, label: 'Oggi', page: TodayPage(me: me, scroll: _homeScroll)),
+          ShellItem(icon: Icons.show_chart, label: 'Storico', page: HistoryPage(me: me)),
+          ShellItem(icon: Icons.format_list_bulleted, label: 'Esercizi', page: ExercisesPage(me: me)),
+          ShellItem(
+              icon: Icons.person_outline,
+              label: 'Profilo',
+              page: ProfilePage(key: ValueKey('p-${me.uid}-${me.coachId}'), me: me)),
         ],
-      ),
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: Color(0xFFE2E4E7)))),
-        child: NavigationBar(
-          selectedIndex: _tab,
-          onDestinationSelected: (i) => setState(() => _tab = i),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.fitness_center), label: 'Oggi'),
-            NavigationDestination(icon: Icon(Icons.show_chart), label: 'Storico'),
-            NavigationDestination(icon: Icon(Icons.format_list_bulleted), label: 'Esercizi'),
-            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profilo'),
-          ],
-        ),
-      ),
       ),
     );
   }

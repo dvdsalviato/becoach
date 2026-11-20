@@ -1,4 +1,6 @@
-## BeCoach 1.5.1
+## BeCoach 1.6
 
-- Allenato: "Aggiungi al mio calendario" sugli appuntamenti, con promemoria il giorno prima e un'ora prima
-- Prima versione web per iPhone
+- Versione desktop: su PC, Mac e tablet in orizzontale il menu passa a sinistra e le pagine si allargano
+- Clienti su desktop: elenco a sinistra e scheda del cliente a destra
+- Agenda su desktop: mese grande con i titoli degli appuntamenti e il giorno selezionato a lato
+- Sul telefono non cambia niente

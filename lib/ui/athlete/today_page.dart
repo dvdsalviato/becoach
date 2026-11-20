@@ -51,7 +51,7 @@ class _TodayPageState extends State<TodayPage> {
   void _openWorkout(String id) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => WorkoutPage(me: widget.me, sessionId: id)),
+      pageRoute((_) => WorkoutPage(me: widget.me, sessionId: id)),
     );
   }
 

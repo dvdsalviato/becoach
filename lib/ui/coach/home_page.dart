@@ -31,7 +31,7 @@ class _CoachHomePageState extends State<CoachHomePage> {
   void _openSessions(String title, bool Function(Session) test) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CoachSessionsPage(me: widget.me, title: title, test: test)),
+      pageRoute((_) => CoachSessionsPage(me: widget.me, title: title, test: test)),
     );
   }
 
@@ -129,7 +129,7 @@ class _CoachHomePageState extends State<CoachHomePage> {
                                     showAthlete: true,
                                     onTap: () => Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (_) => SessionDetailPage(me: me, sessionId: s.id)),
+                                      pageRoute((_) => SessionDetailPage(me: me, sessionId: s.id)),
                                     ),
                                   ),
                                 ),
@@ -400,7 +400,7 @@ class _CoachSessionsPageState extends State<CoachSessionsPage> {
               showAthlete: true,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => SessionDetailPage(me: widget.me, sessionId: list[i].id)),
+                pageRoute((_) => SessionDetailPage(me: widget.me, sessionId: list[i].id)),
               ),
             ),
           );

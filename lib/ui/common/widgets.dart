@@ -3,6 +3,49 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme.dart';
 
+/// Da questa larghezza in su l'app usa il layout desktop (menu laterale, pannelli affiancati).
+const wideBreakpoint = 900.0;
+
+bool isWide(BuildContext context) => MediaQuery.sizeOf(context).width >= wideBreakpoint;
+
+/// Su schermi larghi tiene il contenuto centrato e a una larghezza leggibile.
+class Readable extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  const Readable({super.key, required this.child, this.maxWidth = 860});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(constraints: BoxConstraints(maxWidth: maxWidth), child: child),
+    );
+  }
+}
+
+/// Pagina aperta sopra le altre: su schermi larghi resta centrata, sul telefono a tutto schermo.
+class PageFrame extends StatelessWidget {
+  final Widget child;
+  const PageFrame({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isWide(context)) return child;
+    return ColoredBox(
+      color: const Color(0xFFE9ECEF),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Material(elevation: 2, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+Route<T> pageRoute<T>(WidgetBuilder builder) =>
+    MaterialPageRoute<T>(builder: (context) => PageFrame(child: builder(context)));
+
 class Panel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;

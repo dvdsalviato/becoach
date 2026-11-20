@@ -115,6 +115,14 @@ ThemeData buildTheme() {
         return IconThemeData(color: sel ? BC.steel : BC.muted, size: 24);
       }),
     ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: Colors.white,
+      indicatorColor: BC.steelTint,
+      selectedIconTheme: const IconThemeData(color: BC.steel),
+      unselectedIconTheme: const IconThemeData(color: BC.muted),
+      selectedLabelTextStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: BC.steel),
+      unselectedLabelTextStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: BC.muted),
+    ),
     snackBarTheme: const SnackBarThemeData(
       backgroundColor: BC.graphite,
       behavior: SnackBarBehavior.floating,

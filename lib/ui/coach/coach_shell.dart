@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models.dart';
 import '../../notifications.dart';
 import '../../updates.dart';
+import '../common/adaptive_shell.dart';
 import '../common/back_handler.dart';
 import '../common/profile_page.dart';
 import 'agenda_page.dart';
@@ -46,31 +47,23 @@ class _CoachShellState extends State<CoachShell> {
       tab: _tab,
       setTab: _setTab,
       homeScroll: _homeScroll,
-      child: Scaffold(
-        body: IndexedStack(
-          index: _tab,
-          children: [
-            CoachHomePage(me: me, scroll: _homeScroll, openTab: _setTab),
-            ClientsPage(me: me),
-            AgendaPage(me: me),
-            LibraryPage(me: me),
-            ProfilePage(key: ValueKey('c-${me.uid}-${me.coachInviteCode}'), me: me),
-          ],
-        ),
-        bottomNavigationBar: DecoratedBox(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFE2E4E7)))),
-          child: NavigationBar(
-            selectedIndex: _tab,
-            onDestinationSelected: _setTab,
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.groups_outlined), label: 'Clienti'),
-              NavigationDestination(icon: Icon(Icons.calendar_month_outlined), label: 'Agenda'),
-              NavigationDestination(icon: Icon(Icons.description_outlined), label: 'Schede'),
-              NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profilo'),
-            ],
-          ),
-        ),
+      child: AdaptiveShell(
+        tab: _tab,
+        onTab: _setTab,
+        items: [
+          ShellItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: 'Home',
+              page: CoachHomePage(me: me, scroll: _homeScroll, openTab: _setTab)),
+          ShellItem(icon: Icons.groups_outlined, label: 'Clienti', page: ClientsPage(me: me), fullWidth: true),
+          ShellItem(icon: Icons.calendar_month_outlined, label: 'Agenda', page: AgendaPage(me: me), fullWidth: true),
+          ShellItem(icon: Icons.description_outlined, label: 'Schede', page: LibraryPage(me: me)),
+          ShellItem(
+              icon: Icons.person_outline,
+              label: 'Profilo',
+              page: ProfilePage(key: ValueKey('c-${me.uid}-${me.coachInviteCode}'), me: me)),
+        ],
       ),
     );
   }
