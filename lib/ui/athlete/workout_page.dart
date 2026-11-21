@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
 
 import '../../data/exercise_library.dart';
@@ -353,8 +354,10 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'discard') _discard();
+              if (v == 'finish') _finish();
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'finish', child: Text('Termina e salva')),
               PopupMenuItem(value: 'discard', child: Text('Annulla allenamento')),
             ],
           ),
@@ -467,7 +470,8 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
                 child: Text('$done di $total esercizi completati',
                     style: const TextStyle(fontSize: 13, color: BC.muted)),
               ),
-              FilledButton(onPressed: _finish, child: const Text('Termina')),
+              if (!_guided && total > 0 && done == total)
+                FilledButton(onPressed: _finish, child: const Text('Salva e chiudi')),
             ],
           ),
         );
@@ -600,15 +604,9 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
             ),
           ),
         ],
-        if (si < e.prev.length || e.record.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(
-            [
-              if (si < e.prev.length) 'La volta scorsa: ${e.prev[si]}',
-              if (e.record.isNotEmpty) 'Record: ${e.record}',
-            ].join('  ·  '),
-            style: const TextStyle(fontSize: 13, color: BC.muted),
-          ),
+        if (e.prev.isNotEmpty || e.record.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _lastTime(e, si),
         ],
         if (e.notes.trim().isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -751,7 +749,82 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
             ],
           ),
         ),
+        if (e.prev.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _lastTime(e, si),
+        ],
       ],
+    );
+  }
+
+  /// "Ultima volta": tutte le serie della volta scorsa, quella in corso in evidenza.
+  Widget _lastTime(SessionExercise e, int si) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: BC.border),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text('ULTIMA VOLTA',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: BC.muted)),
+              ),
+              if (e.record.isNotEmpty)
+                Text('Record ${e.record}', style: const TextStyle(fontSize: 12, color: BC.muted)),
+            ],
+          ),
+          if (e.prev.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var j = 0; j < e.prev.length; j++) ...[
+                    if (j > 0) const SizedBox(width: 18),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('SERIE ${j + 1}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              letterSpacing: 0.8,
+                              fontWeight: j == si ? FontWeight.w700 : FontWeight.w500,
+                              color: j == si ? BC.steel : BC.muted,
+                            )),
+                        const SizedBox(height: 2),
+                        Text(e.prev[j],
+                            style: j == si
+                                ? const TextStyle(
+                                    fontFamily: BC.display,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: BC.ink,
+                                    fontFeatures: [FontFeature.tabularFigures()])
+                                : TextStyle(
+                                    fontSize: 13,
+                                    color: j < si ? BC.body : BC.muted.withValues(alpha: 0.7),
+                                    fontFeatures: const [FontFeature.tabularFigures()])),
+                      ],
+                    ),
+                  ],
+                  if (si >= e.prev.length) ...[
+                    const SizedBox(width: 18),
+                    Text('serie ${si + 1} non fatta l\'ultima volta',
+                        style: const TextStyle(fontSize: 12, color: BC.muted)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -795,38 +868,9 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
   }
 
   Widget _ring(double size, String label, Color color) {
-    final rem = _remaining;
-    final progress = _timerTotal == 0 ? 0.0 : (rem / _timerTotal).clamp(0.0, 1.0);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 9,
-              color: color,
-              backgroundColor: BC.border,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(fmtClock(rem),
-                  style: TextStyle(
-                      fontSize: size * 0.22,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()])),
-              if (label.isNotEmpty) Text(label, style: const TextStyle(color: BC.muted, fontSize: 13)),
-            ],
-          ),
-        ],
-      ),
-    );
+    final end = _timerEnd;
+    if (end == null) return SizedBox(width: size, height: size);
+    return SmoothTimerRing(end: end, total: _timerTotal, size: size, label: label, color: color);
   }
 
   Widget _stepper({
@@ -1215,3 +1259,106 @@ class _WorkoutPageState extends State<WorkoutPage> with WidgetsBindingObserver {
 
 /// 75 -> 1:15
 String fmtClock(int s) => '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+
+
+/// Anello del timer che scorre in modo continuo (aggiornato a ogni frame).
+class SmoothTimerRing extends StatefulWidget {
+  final DateTime end;
+  final int total;
+  final double size;
+  final String label;
+  final Color color;
+  const SmoothTimerRing({
+    super.key,
+    required this.end,
+    required this.total,
+    required this.size,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  State<SmoothTimerRing> createState() => _SmoothTimerRingState();
+}
+
+class _SmoothTimerRingState extends State<SmoothTimerRing> with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker((_) {
+      if (mounted) setState(() {});
+    })
+      ..start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = math.max(0, widget.end.difference(DateTime.now()).inMilliseconds);
+    final totalMs = widget.total * 1000;
+    final progress = totalMs == 0 ? 0.0 : (ms / totalMs).clamp(0.0, 1.0);
+    final secs = (ms / 1000).ceil();
+    final size = widget.size;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: Size(size, size),
+            painter: _SmoothRingPainter(progress, widget.color),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(fmtClock(secs),
+                  style: TextStyle(
+                      fontFamily: BC.display,
+                      fontSize: size * 0.22,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+              if (widget.label.isNotEmpty)
+                Text(widget.label, style: const TextStyle(color: BC.muted, fontSize: 13)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmoothRingPainter extends CustomPainter {
+  final double value;
+  final Color color;
+  _SmoothRingPainter(this.value, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 9.0;
+    final rect = Rect.fromLTWH(stroke / 2, stroke / 2, size.width - stroke, size.height - stroke);
+    canvas.drawArc(rect, 0, math.pi * 2, false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = BC.border);
+    if (value > 0) {
+      canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * value, false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = stroke
+            ..strokeCap = StrokeCap.round
+            ..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SmoothRingPainter old) => old.value != value || old.color != color;
+}

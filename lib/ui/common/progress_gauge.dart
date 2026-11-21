@@ -235,7 +235,48 @@ WeekStats weekStats(List<Session> sessions, DateTime from) {
   return WeekStats(from, done, vol);
 }
 
-/// Tachimetro della settimana, anelli delle ultime settimane e degli obiettivi.
+/// Anelli delle ultime 4 settimane (allenamenti fatti / previsti).
+class WeekRings extends StatelessWidget {
+  final List<WeekStats> weeks;
+  final int planned;
+  const WeekRings({super.key, required this.weeks, required this.planned});
+
+  static List<WeekStats> last4(List<Session> sessions) {
+    final ws = weekStart();
+    return [for (var k = 3; k >= 0; k--) weekStats(sessions, ws.subtract(Duration(days: 7 * k)))];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < weeks.length; i++)
+          Expanded(
+            child: Column(
+              children: [
+                ProgressRing(
+                  value: weeks[i].done / planned,
+                  color: i == weeks.length - 1 ? BC.graphite : BC.steel,
+                  center: Text('${weeks[i].done}/$planned',
+                      style: const TextStyle(fontFamily: BC.display, fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 6),
+                Text(i == weeks.length - 1 ? 'QUESTA' : 'S${isoWeek(weeks[i].start)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 0.6,
+                      fontWeight: i == weeks.length - 1 ? FontWeight.w700 : FontWeight.w500,
+                      color: i == weeks.length - 1 ? BC.ink : BC.muted,
+                    )),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Anelli delle ultime settimane e degli obiettivi.
 class AthleteProgressHero extends StatelessWidget {
   final List<Session> sessions;
   final Plan? plan;
@@ -269,63 +310,21 @@ class AthleteProgressHero extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          decoration: const BoxDecoration(color: Colors.white, border: Border(top: line, bottom: line)),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  const Expanded(child: Text('OBIETTIVO SETTIMANA', style: label)),
-                  Text('${cur.done} di $planned allenamenti', style: const TextStyle(fontSize: 12.5, color: BC.muted)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LayoutBuilder(
-                builder: (context, c) => SpeedGauge(value: pct, width: math.min(320, c.maxWidth)),
-              ),
-              Text(
-                cur.volume > 0
-                    ? '${_kg(cur.volume)} kg di volume questa settimana'
-                    : (cur.done == 0 ? 'Il primo allenamento della settimana fa partire l\'ago' : ''),
-                style: const TextStyle(fontSize: 13, color: BC.body),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          decoration: const BoxDecoration(border: Border(bottom: line)),
+          decoration: const BoxDecoration(border: Border(top: line, bottom: line)),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('ULTIME 4 SETTIMANE', style: label),
-              const SizedBox(height: 12),
               Row(
                 children: [
-                  for (var i = 0; i < weeks.length; i++)
-                    Expanded(
-                      child: Column(
-                        children: [
-                          ProgressRing(
-                            value: weeks[i].done / planned,
-                            color: i == weeks.length - 1 ? BC.graphite : BC.steel,
-                            center: Text('${weeks[i].done}/$planned',
-                                style: const TextStyle(
-                                    fontFamily: BC.display, fontSize: 12, fontWeight: FontWeight.w700)),
-                          ),
-                          const SizedBox(height: 6),
-                          Text('S${isoWeek(weeks[i].start)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                letterSpacing: 0.6,
-                                fontWeight: i == weeks.length - 1 ? FontWeight.w700 : FontWeight.w500,
-                                color: i == weeks.length - 1 ? BC.ink : BC.muted,
-                              )),
-                        ],
-                      ),
-                    ),
+                  const Expanded(child: Text('ULTIME 4 SETTIMANE', style: label)),
+                  if (cur.volume > 0)
+                    Text('${_kg(cur.volume)} kg questa settimana',
+                        style: const TextStyle(fontSize: 12.5, color: BC.muted)),
                 ],
               ),
+              const SizedBox(height: 12),
+              WeekRings(weeks: weeks, planned: planned),
             ],
           ),
         ),

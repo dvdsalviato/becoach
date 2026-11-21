@@ -1,8 +1,6 @@
-## BeCoach 1.7 – nuovo stile
+## BeCoach 1.7.1
 
-- Titoli in Space Grotesk, più grandi e decisi
-- Bordi netti e linee sottili al posto delle card arrotondate
-- Barra in basso con la linea sopra la voce attiva
-- Home dell'allenato: tachimetro dell'obiettivo settimanale con l'ago che sale
-- Anelli delle ultime 4 settimane e degli obiettivi (allenamenti, volume, costanza)
-- Il coach vede il tachimetro della settimana nella scheda del cliente
+- Home dell'allenato: prima gli appuntamenti, poi la scheda, in fondo le ultime 4 settimane (tachimetro rimosso)
+- Allenamento guidato: tolto il tasto "Termina" in basso (ora è nel menu ⋮ come "Termina e salva")
+- Timer di recupero fluido, senza scatti
+- "Ultima volta": vedi tutte le serie della volta scorsa, con quella in corso in grande

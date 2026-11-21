@@ -100,14 +100,14 @@ class _TodayPageState extends State<TodayPage> {
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
                   PageHeader(overline: fmtDate(now), title: 'Ciao $firstName'),
-                  if (me.hasCoach) AthleteProgressHero(sessions: sessions, plan: plan),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (me.hasCoach) AthleteAppointments(key: ValueKey(me.coachId), me: me),
                         if (live != null) ...[
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 16),
                           Panel(
                             color: BC.graphite,
                             borderColor: BC.graphite,
@@ -143,7 +143,6 @@ class _TodayPageState extends State<TodayPage> {
                             ),
                           ),
                         ],
-                        if (me.hasCoach) AthleteAppointments(key: ValueKey(me.coachId), me: me),
                         if (!me.hasCoach) ...[
                           const SizedBox(height: 16),
                           Panel(
@@ -200,6 +199,10 @@ class _TodayPageState extends State<TodayPage> {
                       ],
                     ),
                   ),
+                  if (me.hasCoach) ...[
+                    const SizedBox(height: 28),
+                    AthleteProgressHero(sessions: sessions, plan: plan),
+                  ],
                 ],
               );
             },

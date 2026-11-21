@@ -211,7 +211,8 @@ class _Overview extends StatelessWidget {
         ],
         Builder(builder: (context) {
           final planned = (active?.days.length ?? 0) > 0 ? active!.days.length : 3;
-          final w = weekStats(sessions, weekStart());
+          final weeks = WeekRings.last4(sessions);
+          final w = weeks.last;
           return Panel(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Column(
@@ -219,13 +220,15 @@ class _Overview extends StatelessWidget {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('OBIETTIVO SETTIMANA',
+                      child: Text('ULTIME 4 SETTIMANE',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.6, color: BC.muted)),
                     ),
-                    Text('${w.done} di $planned', style: const TextStyle(fontSize: 12.5, color: BC.muted)),
+                    Text('${w.done} di $planned questa sett.', style: const TextStyle(fontSize: 12.5, color: BC.muted)),
                   ],
                 ),
-                SpeedGauge(value: w.done / planned, width: 230),
+                const SizedBox(height: 12),
+                WeekRings(weeks: weeks, planned: planned),
+                const SizedBox(height: 6),
               ],
             ),
           );
