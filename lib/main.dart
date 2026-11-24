@@ -13,6 +13,7 @@ import 'theme.dart';
 import 'ui/athlete/athlete_shell.dart';
 import 'ui/auth_page.dart';
 import 'ui/coach/coach_shell.dart';
+import 'ui/gym/gym_shell.dart';
 import 'ui/common/widgets.dart';
 import 'ui/role_setup_page.dart';
 
@@ -104,6 +105,7 @@ class _UserGateState extends State<_UserGate> {
         }
         final me = snap.data;
         if (me == null) return RoleSetupPage(user: widget.user);
+        if (me.gymMode) return GymGate(me: me);
         return me.coachMode ? CoachShell(me: me) : AthleteShell(me: me);
       },
     );

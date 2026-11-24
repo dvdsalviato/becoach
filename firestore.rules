@@ -40,6 +40,45 @@ service cloud.firestore {
       allow update: if signedIn() && resource.data.athleteId == me() && request.resource.data.athleteId == me() && request.resource.data.coachId == resource.data.coachId;
       allow delete: if signedIn() && resource.data.athleteId == me();
     }
+    // ---------------- gestionale palestra ----------------
+    function gymDoc(g) { return get(/databases/$(database)/documents/gyms/$(g)).data; }
+    function isStaff(g) { return signedIn() && me() in gymDoc(g).staff; }
+    function isGymOwner(g) { return signedIn() && gymDoc(g).owner == me(); }
+    match /gyms/{g} {
+      allow read: if signedIn() && me() in resource.data.staff;
+      allow create: if signedIn() && request.resource.data.owner == me() && request.resource.data.staff == [me()];
+      allow update: if signedIn() && (resource.data.owner == me()
+        || (me() in resource.data.staff && request.resource.data.owner == resource.data.owner
+            && request.resource.data.staff == resource.data.staff));
+      allow delete: if false;
+      match /staffRequests/{uid} {
+        allow create, read: if signedIn() && me() == uid;
+        allow delete: if signedIn() && (me() == uid || isGymOwner(g));
+        allow list: if isGymOwner(g);
+      }
+      match /members/{m} {
+        allow read: if isStaff(g) || (signedIn() && resource.data.linkedUid == me());
+        allow create, delete: if isStaff(g);
+        allow update: if isStaff(g)
+          || (signedIn() && resource.data.get('linkedUid', '') == ''
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
+              && request.resource.data.linkedUid == me());
+        match /files/{f} { allow read, write: if isStaff(g); }
+      }
+      match /{coll}/{id} {
+        allow read, write: if coll in ['priceList', 'subscriptions', 'payments', 'checkins'] && isStaff(g);
+      }
+    }
+    match /gymCodes/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.owner == me();
+      allow update, delete: if signedIn() && resource.data.owner == me();
+    }
+    match /cardLinks/{code} {
+      allow get: if signedIn();
+      allow create, update: if isStaff(request.resource.data.gymId);
+      allow delete: if isStaff(resource.data.gymId);
+    }
     match /coachVideos/{id} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.resource.data.coachId == me();

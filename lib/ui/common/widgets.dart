@@ -351,6 +351,7 @@ Future<String?> askText(BuildContext context,
 
 /// Messaggio comprensibile per gli errori più comuni di Firebase.
 String friendlyError(Object e) {
+  if (e is String) return e;
   final t = e.toString();
   if (t.contains('permission-denied') || t.contains('PERMISSION_DENIED')) {
     return 'Permesso negato da Firebase: le regole di sicurezza non sono aggiornate. '

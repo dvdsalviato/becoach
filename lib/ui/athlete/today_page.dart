@@ -7,6 +7,7 @@ import '../../util.dart';
 import '../common/progress_gauge.dart';
 import '../common/widgets.dart';
 import 'appointments_section.dart';
+import 'gym_card.dart';
 import 'join_coach.dart';
 import 'workout_page.dart';
 
@@ -105,6 +106,10 @@ class _TodayPageState extends State<TodayPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (me.gymCard != null) ...[
+                          const SizedBox(height: 8),
+                          GymCardPanel(key: ValueKey('gct-${me.gymCard?['code']}'), me: me, compact: true),
+                        ],
                         if (me.hasCoach) AthleteAppointments(key: ValueKey(me.coachId), me: me),
                         if (live != null) ...[
                           const SizedBox(height: 16),

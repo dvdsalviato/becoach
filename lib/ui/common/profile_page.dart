@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../db.dart';
+import '../athlete/gym_card.dart';
 import '../../google.dart';
 import '../../updates.dart';
 import '../../models.dart';
@@ -56,6 +57,8 @@ class ProfilePage extends StatelessWidget {
           ] else ...[
             const SectionLabel('Il tuo coach'),
             _CoachLink(me: me),
+            const SectionLabel('Tessera palestra'),
+            GymCardPanel(key: ValueKey('gc-${me.gymCard?['code']}'), me: me),
             const SectionLabel('Dati personali'),
             _AthleteForm(key: ValueKey('af-${me.uid}'), me: me),
           ],
@@ -366,7 +369,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.7.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.8', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),
@@ -399,6 +402,14 @@ class _DevToolsState extends State<_DevTools> {
                           ),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: Text(me.coachMode ? 'Passa ad allenato' : 'Passa a coach'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() => Db.updateUser(me.uid, {'gymMode': true}), 'Gestionale palestra'),
+                  icon: const Icon(Icons.storefront_outlined, size: 18),
+                  label: const Text('Apri gestionale palestra'),
                 ),
                 if (me.hasCoach) ...[
                   const SizedBox(height: 8),

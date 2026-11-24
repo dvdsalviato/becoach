@@ -58,12 +58,14 @@ class Db {
     required String name,
     required String email,
     required bool isCoach,
+    bool gym = false,
   }) {
     return users.doc(uid).set({
       'name': name,
       'email': email,
       'isCoach': isCoach,
       'coachMode': isCoach,
+      'gymMode': gym,
       'goal': '',
       'createdAt': FieldValue.serverTimestamp(),
     });

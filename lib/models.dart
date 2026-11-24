@@ -28,6 +28,10 @@ class AppUser {
   final String lastName;
   final bool googleCalendar; // il coach ha collegato Google Calendar
   final String googleCalendarEmail;
+  // gestionale palestra
+  final bool gymMode; // l'utente usa l'app come segreteria/titolare
+  final String? gymId;
+  final Map<String, dynamic>? gymCard; // tessera del socio: gymId, memberId, code, gymName
 
   AppUser({
     required this.uid,
@@ -51,6 +55,9 @@ class AppUser {
     this.googleCalendarEmail = '',
     this.firstName = '',
     this.lastName = '',
+    this.gymMode = false,
+    this.gymId,
+    this.gymCard,
   });
 
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -78,6 +85,9 @@ class AppUser {
       googleCalendarEmail: _s(m['googleCalendarEmail']),
       firstName: _s(m['firstName']),
       lastName: _s(m['lastName']),
+      gymMode: m['gymMode'] == true,
+      gymId: m['gymId'] is String && (m['gymId'] as String).isNotEmpty ? m['gymId'] as String : null,
+      gymCard: m['gymCard'] is Map ? (m['gymCard'] as Map).cast<String, dynamic>() : null,
     );
   }
 

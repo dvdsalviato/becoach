@@ -16,7 +16,7 @@ class RoleSetupPage extends StatefulWidget {
 class _RoleSetupPageState extends State<RoleSetupPage> {
   late final TextEditingController _name =
       TextEditingController(text: widget.user.displayName ?? '');
-  bool? _coach;
+  String? _role; // coach, athlete, gym
   bool _busy = false;
 
   @override
@@ -26,7 +26,7 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
   }
 
   Future<void> _go() async {
-    if (_name.text.trim().isEmpty || _coach == null) {
+    if (_name.text.trim().isEmpty || _role == null) {
       toast(context, 'Scrivi il nome e scegli il ruolo');
       return;
     }
@@ -36,7 +36,8 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
         uid: widget.user.uid,
         name: _name.text.trim(),
         email: widget.user.email ?? '',
-        isCoach: _coach!,
+        isCoach: _role == 'coach',
+        gym: _role == 'gym',
       );
     } catch (e) {
       if (mounted) toast(context, 'Errore: $e');
@@ -45,10 +46,10 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
     }
   }
 
-  Widget _choice(bool coach, IconData icon, String title, String text) {
-    final sel = _coach == coach;
+  Widget _choice(String role, IconData icon, String title, String text) {
+    final sel = _role == role;
     return Panel(
-      onTap: () => setState(() => _coach = coach),
+      onTap: () => setState(() => _role = role),
       borderColor: sel ? BC.steel : BC.border,
       color: sel ? BC.steelTint : Colors.white,
       child: Row(
@@ -98,11 +99,14 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
             decoration: const InputDecoration(labelText: 'Nome e cognome'),
           ),
           const SizedBox(height: 16),
-          _choice(true, Icons.assignment_ind_outlined, 'Sono un coach',
+          _choice('coach', Icons.assignment_ind_outlined, 'Sono un coach',
               'Gestisci i clienti, crei le schede e segui gli allenamenti.'),
           const SizedBox(height: 10),
-          _choice(false, Icons.fitness_center, 'Mi alleno',
+          _choice('athlete', Icons.fitness_center, 'Mi alleno',
               'Segui la scheda del tuo coach e registra i carichi.'),
+          const SizedBox(height: 10),
+          _choice('gym', Icons.storefront_outlined, 'Gestisco una palestra',
+              'Soci, abbonamenti, certificati, ingressi con tessera e cassa.'),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _busy ? null : _go,

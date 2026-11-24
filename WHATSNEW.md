@@ -1,6 +1,9 @@
-## BeCoach 1.7.1
+## BeCoach 1.8 – Gestionale palestra
 
-- Home dell'allenato: prima gli appuntamenti, poi la scheda, in fondo le ultime 4 settimane (tachimetro rimosso)
-- Allenamento guidato: tolto il tasto "Termina" in basso (ora è nel menu ⋮ come "Termina e salva")
-- Timer di recupero fluido, senza scatti
-- "Ultima volta": vedi tutte le serie della volta scorsa, con quella in corso in grande
+- Nuovo ruolo "Gestisco una palestra" (titolare e staff con codice e approvazione)
+- Soci: anagrafica completa, codice fiscale, consensi privacy, foto, tessera numerata con QR
+- Certificato medico: tipo, scadenza, verifica dello staff, copia fotografata
+- Listino, vendita abbonamenti a tempo o a ingressi, rate, rinnovi
+- Cassa: prima nota entrate/uscite, ricevute PDF numerate, export Excel per il commercialista
+- Ingressi: scanner QR della tessera con controllo abbonamento e certificato
+- Per il socio: tessera con QR nell'app (Profilo → Tessera palestra)
