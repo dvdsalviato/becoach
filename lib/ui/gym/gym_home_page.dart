@@ -5,6 +5,7 @@ import '../../gym/gym_models.dart';
 import '../../theme.dart';
 import '../../util.dart';
 import '../common/widgets.dart';
+import 'courses_page.dart';
 import 'expiring_page.dart';
 import 'gym_shell.dart';
 import 'gym_widgets.dart';
@@ -110,6 +111,11 @@ class _GymHomePageState extends State<GymHomePage> {
                       label: const Text('Scadenze'),
                     ),
                     OutlinedButton.icon(
+                      onPressed: () => _open(const CoursesPage()),
+                      icon: const Icon(Icons.groups_2_outlined, size: 18),
+                      label: const Text('Corsi'),
+                    ),
+                    OutlinedButton.icon(
                       onPressed: () => _open(const KioskPage()),
                       icon: const Icon(Icons.sensor_door_outlined, size: 18),
                       label: const Text('Postazione ingresso'),
@@ -201,15 +207,8 @@ class _GymHomePageState extends State<GymHomePage> {
   }
 
   List<Widget> _statusResults(List<Member> members, Gym gym) {
-    final q = _q.trim().toLowerCase();
-    if (q.isEmpty) return const [];
-    final res = members
-        .where((m) =>
-            m.fullName.toLowerCase().contains(q) ||
-            '${m.lastName} ${m.firstName}'.toLowerCase().contains(q) ||
-            m.cardNumber.toString() == q)
-        .take(5)
-        .toList();
+    if (_q.trim().isEmpty) return const [];
+    final res = members.where((m) => memberMatchesQuery(m, _q)).take(5).toList();
     if (res.isEmpty) {
       return const [
         Padding(padding: EdgeInsets.only(top: 10), child: Text('Nessun iscritto trovato.', style: TextStyle(color: BC.muted)))

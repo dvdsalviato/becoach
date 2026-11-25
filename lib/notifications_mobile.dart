@@ -102,6 +102,15 @@ class Notifs {
     }
   }
 
+  /// Promemoria generico a una data (abbonamento, certificato, lezione prenotata).
+  static Future<void> scheduleAt(int id, DateTime at, String title, String body) =>
+      _schedule(id, at, title, body, _details);
+
+  static Future<void> cancel(int id) async {
+    await init();
+    await _plugin.cancel(id);
+  }
+
   /// Fine recupero / fine serie a tempo, anche con lo schermo spento.
   static Future<void> scheduleTimer(DateTime at, String title, String body) =>
       _schedule(timerId, at, title, body, _timerDetails);

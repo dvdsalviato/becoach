@@ -384,7 +384,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.9', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 2.0', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),

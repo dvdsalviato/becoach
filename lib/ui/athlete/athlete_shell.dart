@@ -7,6 +7,7 @@ import '../common/adaptive_shell.dart';
 import '../common/back_handler.dart';
 import '../common/exercises_page.dart';
 import '../common/profile_page.dart';
+import 'gym_courses_page.dart';
 import 'history_page.dart';
 import 'today_page.dart';
 
@@ -49,6 +50,11 @@ class _AthleteShellState extends State<AthleteShell> {
         onTab: (i) => setState(() => _tab = i),
         items: [
           ShellItem(icon: Icons.fitness_center, label: 'Oggi', page: TodayPage(me: me, scroll: _homeScroll)),
+          if (me.gymCard != null)
+            ShellItem(
+                icon: Icons.groups_2_outlined,
+                label: 'Corsi',
+                page: GymCoursesPage(key: ValueKey('gc-${me.gymCard?['code']}'), me: me)),
           ShellItem(icon: Icons.show_chart, label: 'Storico', page: HistoryPage(me: me)),
           ShellItem(icon: Icons.format_list_bulleted, label: 'Esercizi', page: ExercisesPage(me: me)),
           ShellItem(

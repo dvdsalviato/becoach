@@ -7,7 +7,11 @@ import '../../gym/gym_models.dart';
 import '../../theme.dart';
 import '../../updates.dart';
 import '../common/widgets.dart';
+import '../../gym/exports.dart';
+import 'courses_page.dart';
 import 'gym_shell.dart';
+import 'import_page.dart';
+import 'stats_page.dart';
 import 'gym_widgets.dart';
 
 class GymMorePage extends StatelessWidget {
@@ -40,11 +44,38 @@ class GymMorePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              item(Icons.groups_2_outlined, 'Corsi', 'Orario settimanale, posti e prenotazioni', const CoursesPage()),
+              const SizedBox(height: 8),
+              if (g.canSeeCash(me.uid)) ...[
+                item(Icons.bar_chart, 'Statistiche', 'Incassi per mese, affluenza per giorno e ora, vendite', const StatsPage()),
+                const SizedBox(height: 8),
+              ],
+              item(Icons.upload_file, 'Importa iscritti', 'Dal vecchio gestionale, con un file CSV di Excel', const ImportPage()),
+              const SizedBox(height: 8),
               item(Icons.sell_outlined, 'Listino', 'Iscrizione, abbonamenti, pacchetti ingressi e prodotti', const PriceListPage()),
               const SizedBox(height: 8),
               item(Icons.storefront_outlined, 'Dati della palestra', 'Ragione sociale, P. IVA, indirizzo per le ricevute', const GymInfoPage()),
               const SizedBox(height: 8),
-              item(Icons.groups_outlined, 'Staff', 'Codice staff, richieste di accesso', const StaffPage()),
+              item(Icons.badge_outlined, 'Staff', 'Codice staff, richieste di accesso', const StaffPage()),
+              if (owner) ...[
+                const SizedBox(height: 8),
+                Panel(
+                  onTap: () async {
+                    final list = await GymDb.subsSince(g.id, DateTime(2000));
+                    await exportSubscriptions(g.name, list);
+                  },
+                  child: const Row(children: [
+                    Icon(Icons.download_outlined, color: BC.steel),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Esporta tutti gli abbonamenti', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                        Text('File Excel con vendite, pagato e da incassare', style: TextStyle(fontSize: 13, color: BC.muted)),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ],
               const SectionLabel('Account'),
               Panel(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -66,7 +97,7 @@ class GymMorePage extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 16),
-              const Center(child: Text('BeCoach 1.9 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
+              const Center(child: Text('BeCoach 2.0 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
             ]),
           ),
         ],
@@ -286,6 +317,7 @@ class _GymInfoPageState extends State<GymInfoPage> {
   final _c = <String, TextEditingController>{};
   bool _busy = false;
   bool? _req;
+  bool? _cash;
 
   TextEditingController _ctl(String k, String v) => _c.putIfAbsent(k, () => TextEditingController(text: v));
 
@@ -326,6 +358,14 @@ class _GymInfoPageState extends State<GymInfoPage> {
             ),
             const SizedBox(height: 12),
           ],
+          if (g.isOwner(GymScope.of(context).me.uid))
+            SwitchListTile(
+              value: _cash ?? g.staffSeesCash,
+              onChanged: (v) => setState(() => _cash = v),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Lo staff vede cassa e statistiche'),
+              subtitle: const Text('Se spento, solo il titolare vede incassi, prima nota e statistiche'),
+            ),
           SwitchListTile(
             value: _req!,
             onChanged: (v) => setState(() => _req = v),
@@ -344,6 +384,7 @@ class _GymInfoPageState extends State<GymInfoPage> {
                         for (final k in fields.keys) if (k != 'certWarnDays') k: _c[k]!.text.trim(),
                         'certWarnDays': int.tryParse(_c['certWarnDays']!.text) ?? 30,
                         'requireEnrollment': _req ?? true,
+                        if (_cash != null) 'staffSeesCash': _cash,
                       };
                       await GymDb.updateGym(g.id, data);
                       if (context.mounted) Navigator.pop(context);

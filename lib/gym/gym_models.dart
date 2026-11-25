@@ -48,6 +48,7 @@ class Gym {
   final String receiptNote;
   final int certWarnDays;
   final bool requireEnrollment; // per entrare serve l'iscrizione (tessera) valida
+  final bool staffSeesCash; // lo staff vede cassa e statistiche
 
   Gym({
     required this.id,
@@ -65,6 +66,7 @@ class Gym {
     this.receiptNote = '',
     this.certWarnDays = 30,
     this.requireEnrollment = true,
+    this.staffSeesCash = true,
   });
 
   factory Gym.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -85,11 +87,13 @@ class Gym {
       receiptNote: _s(m['receiptNote']),
       certWarnDays: _i(m['certWarnDays'], 30),
       requireEnrollment: m['requireEnrollment'] != false,
+      staffSeesCash: m['staffSeesCash'] != false,
     );
   }
 
   bool isOwner(String uid) => owner == uid;
   bool isStaff(String uid) => staff.contains(uid);
+  bool canSeeCash(String uid) => isOwner(uid) || staffSeesCash;
 }
 
 class CertInfo {
@@ -672,6 +676,199 @@ AccessCheck checkAccess(Member m, Gym g) {
       break;
   }
   if (m.hasOverdue) warnings.add('Rata da incassare: ${euro(m.dueAmount)}');
+  if (m.lastCheckin != null && DateTime.now().difference(m.lastCheckin!).inHours < 3) {
+    final t = m.lastCheckin!;
+    warnings.add('Già entrato alle ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+  }
   if (!m.privacy) warnings.add('Manca il consenso privacy');
   return AccessCheck(problems.isEmpty, problems, warnings);
+}
+
+// ---------------- corsi e prenotazioni ----------------
+
+const weekdayNames = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
+class Course {
+  final String id;
+  String name;
+  String instructor;
+  String room;
+  int weekday; // 1 = lunedì
+  int hour;
+  int minute;
+  int minutes;
+  int capacity;
+  bool active;
+  String notes;
+
+  Course({
+    this.id = '',
+    this.name = '',
+    this.instructor = '',
+    this.room = '',
+    this.weekday = 1,
+    this.hour = 18,
+    this.minute = 0,
+    this.minutes = 60,
+    this.capacity = 20,
+    this.active = true,
+    this.notes = '',
+  });
+
+  factory Course.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return Course(
+      id: doc.id,
+      name: _s(m['name']),
+      instructor: _s(m['instructor']),
+      room: _s(m['room']),
+      weekday: _i(m['weekday'], 1),
+      hour: _i(m['hour'], 18),
+      minute: _i(m['minute']),
+      minutes: _i(m['minutes'], 60),
+      capacity: _i(m['capacity'], 20),
+      active: m['active'] != false,
+      notes: _s(m['notes']),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'name': name.trim(),
+        'instructor': instructor.trim(),
+        'room': room.trim(),
+        'weekday': weekday,
+        'hour': hour,
+        'minute': minute,
+        'minutes': minutes,
+        'capacity': capacity,
+        'active': active,
+        'notes': notes.trim(),
+      };
+
+  String get timeLabel => '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+  /// Lezioni dei prossimi [days] giorni a partire da oggi.
+  List<Lesson> upcoming(int days) {
+    final out = <Lesson>[];
+    final today = dayOnly(DateTime.now());
+    for (var i = 0; i < days; i++) {
+      final d = today.add(Duration(days: i));
+      if (d.weekday != weekday) continue;
+      final start = DateTime(d.year, d.month, d.day, hour, minute);
+      if (start.add(Duration(minutes: minutes)).isBefore(DateTime.now())) continue;
+      out.add(Lesson(this, start));
+    }
+    return out;
+  }
+}
+
+class Lesson {
+  final Course course;
+  final DateTime start;
+  Lesson(this.course, this.start);
+  String get id => '${course.id}_${start.year}${start.month.toString().padLeft(2, '0')}${start.day.toString().padLeft(2, '0')}';
+  DateTime get end => start.add(Duration(minutes: course.minutes));
+}
+
+class Booking {
+  final String id;
+  final String lessonId;
+  final String courseId;
+  final String courseName;
+  final DateTime start;
+  final String memberId;
+  final String memberName;
+  final String uid;
+
+  Booking({
+    this.id = '',
+    required this.lessonId,
+    required this.courseId,
+    required this.courseName,
+    required this.start,
+    required this.memberId,
+    required this.memberName,
+    this.uid = '',
+  });
+
+  factory Booking.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return Booking(
+      id: doc.id,
+      lessonId: _s(m['lessonId']),
+      courseId: _s(m['courseId']),
+      courseName: _s(m['courseName']),
+      start: _t(m['start']) ?? DateTime.now(),
+      memberId: _s(m['memberId']),
+      memberName: _s(m['memberName']),
+      uid: _s(m['uid']),
+    );
+  }
+}
+
+// ---------------- codice fiscale ----------------
+
+const _oddCf = {
+  '0': 1, '1': 0, '2': 5, '3': 7, '4': 9, '5': 13, '6': 15, '7': 17, '8': 19, '9': 21,
+  'A': 1, 'B': 0, 'C': 5, 'D': 7, 'E': 9, 'F': 13, 'G': 15, 'H': 17, 'I': 19, 'J': 21, 'K': 2, 'L': 4, 'M': 18,
+  'N': 20, 'O': 11, 'P': 3, 'Q': 6, 'R': 8, 'S': 12, 'T': 14, 'U': 16, 'V': 10, 'W': 22, 'X': 25, 'Y': 24, 'Z': 23,
+};
+
+/// Controlla il carattere di controllo del codice fiscale.
+bool cfValid(String cf) {
+  final s = cf.trim().toUpperCase();
+  if (!RegExp(r'^[A-Z0-9]{16}$').hasMatch(s)) return false;
+  var sum = 0;
+  for (var i = 0; i < 15; i++) {
+    final c = s[i];
+    if (i % 2 == 0) {
+      sum += _oddCf[c] ?? 0;
+    } else {
+      sum += RegExp(r'[0-9]').hasMatch(c) ? int.parse(c) : c.codeUnitAt(0) - 65;
+    }
+  }
+  return String.fromCharCode(65 + sum % 26) == s[15];
+}
+
+/// Data di nascita e sesso ricavati dal codice fiscale (gestisce l'omocodia).
+(DateTime, String)? cfBirth(String cf) {
+  final s = cf.trim().toUpperCase();
+  if (s.length != 16) return null;
+  const omo = 'LMNPQRSTUV';
+  String digits(String x) => x.split('').map((c) => omo.contains(c) ? '${omo.indexOf(c)}' : c).join();
+  final yy = int.tryParse(digits(s.substring(6, 8)));
+  final mm = 'ABCDEHLMPRST'.indexOf(s[8]) + 1;
+  var dd = int.tryParse(digits(s.substring(9, 11)));
+  if (yy == null || mm == 0 || dd == null) return null;
+  final sex = dd > 40 ? 'F' : 'M';
+  if (dd > 40) dd -= 40;
+  final nowYy = DateTime.now().year % 100;
+  final year = (yy <= nowYy ? 2000 : 1900) + yy;
+  if (dd < 1 || dd > 31) return null;
+  return (DateTime(year, mm, dd), sex);
+}
+
+/// Confronto senza maiuscole e accenti, per la ricerca.
+String norm(String s) {
+  const from = 'àáâäèéêëìíîïòóôöùúûü';
+  const to = 'aaaaeeeeiiiioooouuuu';
+  final b = StringBuffer();
+  for (final ch in s.toLowerCase().split('')) {
+    final i = from.indexOf(ch);
+    b.write(i >= 0 ? to[i] : ch);
+  }
+  return b.toString();
+}
+
+bool memberMatchesQuery(Member m, String q) {
+  final n = norm(q.trim());
+  if (n.isEmpty) return true;
+  final name = norm(m.fullName);
+  final rev = norm('${m.lastName} ${m.firstName}');
+  return name.contains(n) ||
+      rev.contains(n) ||
+      m.cardNumber.toString() == n ||
+      norm(m.taxCode).contains(n) ||
+      (n.length >= 4 && m.phone.replaceAll(' ', '').contains(n.replaceAll(' ', ''))) ||
+      norm(m.email).contains(n);
 }

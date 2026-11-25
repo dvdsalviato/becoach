@@ -45,8 +45,8 @@ class _MemberFormPageState extends State<MemberFormPage> {
       return;
     }
     final cf = _cf.text.trim().toUpperCase();
-    if (cf.isNotEmpty && !RegExp(r'^[A-Z0-9]{16}$').hasMatch(cf)) {
-      setState(() => _error = 'Il codice fiscale deve avere 16 caratteri');
+    if (cf.isNotEmpty && !cfValid(cf)) {
+      setState(() => _error = 'Codice fiscale non valido: controlla lettere e numeri');
       return;
     }
     if (!m.privacy) {
@@ -148,7 +148,32 @@ class _MemberFormPageState extends State<MemberFormPage> {
               onChanged: (d) => setState(() => m.birthDate = d),
             ),
           ]),
-          _row([_field(_place, 'Luogo di nascita', cap: words), _field(_cf, 'Codice fiscale', cap: TextCapitalization.characters)]),
+          _row([
+            _field(_place, 'Luogo di nascita', cap: words),
+            TextField(
+              controller: _cf,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 16,
+              decoration: InputDecoration(
+                labelText: 'Codice fiscale',
+                counterText: '',
+                suffixIcon: _cf.text.length == 16
+                    ? Icon(cfValid(_cf.text) ? Icons.check_circle : Icons.error_outline,
+                        color: cfValid(_cf.text) ? const Color(0xFF1F6B3A) : BC.danger, size: 20)
+                    : null,
+              ),
+              onChanged: (v) {
+                if (v.trim().length == 16) {
+                  final b = cfBirth(v);
+                  if (b != null) {
+                    m.birthDate ??= b.$1;
+                    if (m.gender.isEmpty) m.gender = b.$2;
+                  }
+                }
+                setState(() {});
+              },
+            ),
+          ]),
           const SectionLabel('Contatti'),
           _row([_field(_phone, 'Telefono', kb: TextInputType.phone), _field(_email, 'Email', kb: TextInputType.emailAddress)]),
           _row([_field(_addr, 'Indirizzo', cap: TextCapitalization.sentences)]),

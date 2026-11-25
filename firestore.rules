@@ -43,6 +43,9 @@ service cloud.firestore {
     // ---------------- gestionale palestra ----------------
     function gymDoc(g) { return get(/databases/$(database)/documents/gyms/$(g)).data; }
     function isStaff(g) { return signedIn() && me() in gymDoc(g).staff; }
+    function isGymMember(g) {
+      return signedIn() && get(/databases/$(database)/documents/users/$(me())).data.get('gymCard', {}).get('gymId', '') == g;
+    }
     function isGymOwner(g) { return signedIn() && gymDoc(g).owner == me(); }
     match /gyms/{g} {
       allow read: if signedIn() && me() in resource.data.staff;
@@ -69,6 +72,18 @@ service cloud.firestore {
       }
       match /{coll}/{id} {
         allow read, write: if coll in ['priceList', 'subscriptions', 'payments', 'checkins'] && isStaff(g);
+      }
+      match /courses/{id} {
+        allow read: if isStaff(g) || isGymMember(g);
+        allow write: if isStaff(g);
+      }
+      match /lessons/{id} {
+        allow read, write: if isStaff(g) || isGymMember(g);
+      }
+      match /bookings/{id} {
+        allow read: if isStaff(g) || (signedIn() && resource.data.uid == me());
+        allow create: if isStaff(g) || (isGymMember(g) && request.resource.data.uid == me());
+        allow delete: if isStaff(g) || (signedIn() && resource.data.uid == me());
       }
     }
     match /gymCodes/{code} {

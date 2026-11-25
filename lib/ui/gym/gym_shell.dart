@@ -89,7 +89,7 @@ class _GymShellState extends State<GymShell> {
                 page: GymHomePage(scroll: _homeScroll, openTab: _setTab)),
             const ShellItem(icon: Icons.badge_outlined, label: 'Iscritti', page: MembersPage(), fullWidth: true),
             const ShellItem(icon: Icons.qr_code_scanner, label: 'Ingressi', page: CheckinPage(), fullWidth: true),
-            const ShellItem(icon: Icons.point_of_sale_outlined, label: 'Cassa', page: CashPage()),
+            if (g.canSeeCash(me.uid)) const ShellItem(icon: Icons.point_of_sale_outlined, label: 'Cassa', page: CashPage()),
             const ShellItem(icon: Icons.tune, label: 'Altro', page: GymMorePage()),
           ],
         ),

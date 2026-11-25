@@ -6,6 +6,7 @@ import '../../gym/gym_db.dart';
 import '../../gym/gym_models.dart';
 import '../../theme.dart';
 import '../common/widgets.dart';
+import 'credentials.dart';
 import 'gym_shell.dart';
 import 'gym_widgets.dart';
 import 'members_page.dart';
@@ -80,6 +81,17 @@ class _ExpiringPageState extends State<ExpiringPage> {
         _to = dayOnly(r.end);
       });
     }
+  }
+
+  String _reminder(Gym g, Member m, DateTime d) {
+    final past = d.isBefore(dayOnly(DateTime.now()));
+    final what = switch (_kind) {
+      ExpKind.sub => past ? 'il tuo abbonamento è scaduto' : 'il tuo abbonamento scade',
+      ExpKind.enroll => past ? 'la tua iscrizione è scaduta' : 'la tua iscrizione scade',
+      ExpKind.cert => past ? 'il tuo certificato medico è scaduto' : 'il tuo certificato medico scade',
+    };
+    final action = _kind == ExpKind.cert ? 'Portane uno nuovo in reception' : 'Passa in reception per il rinnovo';
+    return 'Ciao ${m.firstName.trim()}, ti ricordiamo che $what il ${dmy(d)}. $action, ti aspettiamo! – ${g.name}';
   }
 
   @override
@@ -162,10 +174,26 @@ class _ExpiringPageState extends State<ExpiringPage> {
                           if (rows[i].$1.phone.isNotEmpty) rows[i].$1.phone,
                           if (_kind == ExpKind.sub && rows[i].$1.subName.isNotEmpty) rows[i].$1.subName,
                         ].join(' · ')),
-                        trailing: Text(dmy(rows[i].$2),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: rows[i].$2.isBefore(dayOnly(DateTime.now())) ? badFg : BC.ink)),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(dmy(rows[i].$2),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: rows[i].$2.isBefore(dayOnly(DateTime.now())) ? badFg : BC.ink)),
+                          PopupMenuButton<String>(
+                            tooltip: 'Invia promemoria',
+                            icon: const Icon(Icons.notifications_active_outlined, size: 20),
+                            onSelected: (v) {
+                              final m = rows[i].$1;
+                              final text = _reminder(gym, m, rows[i].$2);
+                              if (v == 'wa') sendByWhatsApp(context, m.phone, text);
+                              if (v == 'mail') sendByEmail(context, m.email, 'Promemoria da ${gym.name}', text);
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(value: 'wa', enabled: rows[i].$1.phone.isNotEmpty, child: const Text('Promemoria su WhatsApp')),
+                              PopupMenuItem(value: 'mail', enabled: rows[i].$1.email.isNotEmpty, child: const Text('Promemoria per email')),
+                            ],
+                          ),
+                        ]),
                       ),
                     ],
                   ]),

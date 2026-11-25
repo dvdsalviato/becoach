@@ -85,17 +85,7 @@ class _MembersPageState extends State<MembersPage> {
           if (snap.hasError) return ErrorBox(friendlyError(snap.error!));
           if (!snap.hasData) return const Loading();
           final all = snap.data!;
-          final q = _q.trim().toLowerCase();
-          final list = all.where((m) {
-            if (!memberMatches(m, _filter, gym.certWarnDays)) return false;
-            if (q.isEmpty) return true;
-            return m.fullName.toLowerCase().contains(q) ||
-                '${m.lastName} ${m.firstName}'.toLowerCase().contains(q) ||
-                m.cardNumber.toString() == q ||
-                m.taxCode.toLowerCase().contains(q) ||
-                m.phone.replaceAll(' ', '').contains(q.replaceAll(' ', '')) ||
-                m.email.toLowerCase().contains(q);
-          }).toList();
+          final list = all.where((m) => memberMatches(m, _filter, gym.certWarnDays) && memberMatchesQuery(m, _q)).toList();
           return Readable(
             maxWidth: 1100,
             child: Column(

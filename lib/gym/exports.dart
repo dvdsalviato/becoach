@@ -193,3 +193,83 @@ Future<void> exportExpiring(String gymName, String what, String period, List<(Me
     for (final r in rows) [dmy(r.$2), r.$1.lastName, r.$1.firstName, r.$1.cardNumber, r.$1.phone, r.$1.email, r.$1.subName],
   ]);
 }
+
+/// Modulo d'iscrizione da far firmare: anagrafica, consensi, firma.
+Future<void> shareEnrollmentForm(Gym g, Member m) async {
+  await _fonts();
+  final doc = pw.Document();
+  pw.Widget field(String k, String v) => pw.Container(
+        padding: const pw.EdgeInsets.symmetric(vertical: 5),
+        decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _line))),
+        child: pw.Row(children: [
+          pw.SizedBox(width: 140, child: pw.Text(k, style: pw.TextStyle(font: _reg, fontSize: 9.5, color: _muted))),
+          pw.Expanded(child: pw.Text(v.isEmpty ? '' : v, style: pw.TextStyle(font: _reg, fontSize: 11))),
+        ]),
+      );
+  pw.Widget consent(bool v, String text) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 6),
+        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Container(
+            width: 10,
+            height: 10,
+            margin: const pw.EdgeInsets.only(top: 2, right: 8),
+            decoration: pw.BoxDecoration(border: pw.Border.all(color: _ink)),
+            child: v ? pw.Center(child: pw.Text('X', style: pw.TextStyle(font: _bold, fontSize: 8))) : null,
+          ),
+          pw.Expanded(child: pw.Text(text, style: pw.TextStyle(font: _reg, fontSize: 9.5, color: _ink))),
+        ]),
+      );
+  doc.addPage(pw.Page(
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(40),
+    build: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      _gymHeader(g),
+      pw.SizedBox(height: 18),
+      pw.Text('MODULO DI ISCRIZIONE', style: pw.TextStyle(font: _bold, fontSize: 14, letterSpacing: 1.2)),
+      pw.Text('Tessera n. ${m.cardNumber}  ·  codice ${m.cardCode}', style: pw.TextStyle(font: _reg, fontSize: 9.5, color: _muted)),
+      pw.SizedBox(height: 12),
+      field('Cognome e nome', '${m.lastName} ${m.firstName}'),
+      field('Nato/a a', m.birthPlace),
+      field('Il', m.birthDate == null ? '' : dmy(m.birthDate)),
+      field('Codice fiscale', m.taxCode),
+      field('Residente in', [m.address, [m.zip, m.city].where((e) => e.isNotEmpty).join(' ')].where((e) => e.isNotEmpty).join(', ')),
+      field('Telefono', m.phone),
+      field('Email', m.email),
+      pw.SizedBox(height: 16),
+      pw.Text('Dichiarazioni e consensi', style: pw.TextStyle(font: _bold, fontSize: 11)),
+      pw.SizedBox(height: 8),
+      consent(true,
+          'Dichiaro di aver letto e accettato il regolamento della struttura e di essere in buono stato di salute, '
+          'impegnandomi a consegnare un certificato medico valido per l\'attività sportiva.'),
+      consent(m.privacy,
+          'Ho ricevuto l\'informativa sul trattamento dei dati personali (Reg. UE 2016/679) e acconsento al trattamento per la gestione dell\'iscrizione.'),
+      consent(m.healthData, 'Acconsento al trattamento dei dati relativi alla salute (certificato medico).'),
+      consent(m.photoConsent, 'Acconsento all\'uso della mia fotografia per il riconoscimento all\'ingresso.'),
+      consent(m.marketing, 'Acconsento a ricevere comunicazioni informative e promozionali.'),
+      pw.Spacer(),
+      pw.Row(children: [
+        pw.Expanded(child: pw.Text('Data ${dmy(DateTime.now())}', style: pw.TextStyle(font: _reg, fontSize: 10))),
+        pw.Expanded(
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.SizedBox(height: 26),
+            pw.Container(height: 1, color: _ink),
+            pw.Text('Firma (per i minori, di chi esercita la responsabilità genitoriale)',
+                style: pw.TextStyle(font: _reg, fontSize: 8, color: _muted)),
+          ]),
+        ),
+      ]),
+    ]),
+  ));
+  final bytes = await doc.save();
+  await saveBytes('Modulo_${m.cardNumber}_${_safe(m.lastName)}.pdf', Uint8List.fromList(bytes), 'application/pdf');
+}
+
+/// Abbonamenti venduti (per il commercialista o un backup).
+Future<void> exportSubscriptions(String gymName, List<Subscription> list) async {
+  await _saveCsv('Abbonamenti_${_safe(gymName)}.csv', [
+    ['Iscritto', 'Descrizione', 'Tipo', 'Inizio', 'Fine', 'Ingressi', 'Prezzo', 'Pagato', 'Da incassare', 'Annullato'],
+    for (final s in list)
+      [s.memberName, s.name, s.kind, dmy(s.start), dmy(s.end), s.kind == 'entries' ? '${s.entriesUsed}/${s.entriesTotal}' : '',
+        _num(s.price), _num(s.paidAmount), _num(s.dueAmount), s.cancelled ? 'Sì' : ''],
+  ]);
+}

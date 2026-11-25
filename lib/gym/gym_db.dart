@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -30,6 +31,9 @@ class GymDb {
   static CollectionReference<Map<String, dynamic>> payments(String g) => gym(g).collection('payments');
   static CollectionReference<Map<String, dynamic>> checkins(String g) => gym(g).collection('checkins');
   static CollectionReference<Map<String, dynamic>> staffRequests(String g) => gym(g).collection('staffRequests');
+  static CollectionReference<Map<String, dynamic>> courses(String g) => gym(g).collection('courses');
+  static CollectionReference<Map<String, dynamic>> lessons(String g) => gym(g).collection('lessons');
+  static CollectionReference<Map<String, dynamic>> bookings(String g) => gym(g).collection('bookings');
 
   static const _chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   static String _code(int n) {
@@ -105,11 +109,17 @@ class GymDb {
 
   // ---------------- soci ----------------
 
-  static Stream<List<Member>> membersStream(String g) => members(g).snapshots().map((s) {
-        final list = s.docs.map(Member.fromDoc).toList();
-        list.sort((a, b) => a.sortKey.compareTo(b.sortKey));
-        return list;
-      });
+  /// Un solo ascolto per palestra, condiviso da Home, Iscritti e Ingressi (meno letture, tutto sincronizzato).
+  static final _memberCache = <String, _Replay<List<Member>>>{};
+  static Stream<List<Member>> membersStream(String g) => _memberCache
+      .putIfAbsent(
+          g,
+          () => _Replay(members(g).snapshots().map((s) {
+                final list = s.docs.map(Member.fromDoc).toList();
+                list.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+                return list;
+              })))
+      .stream;
 
   static Stream<Member?> memberStream(String g, String id) =>
       members(g).doc(id).snapshots().map((d) => d.exists ? Member.fromDoc(d) : null);
@@ -166,6 +176,28 @@ class GymDb {
       'cert': c.toMap(),
       'certExpiry': c.expiry == null ? null : Timestamp.fromDate(c.expiry!),
     });
+  }
+
+  /// Eliminazione definitiva (diritto all'oblio). I pagamenti restano in cassa per la contabilità.
+  static Future<void> deleteMember(String g, Member m) async {
+    final ref = members(g).doc(m.id);
+    for (final f in ['photo', 'cert']) {
+      await ref.collection('files').doc(f).delete();
+    }
+    final ss = await subs(g).where('memberId', isEqualTo: m.id).get();
+    for (final d in ss.docs) {
+      await d.reference.delete();
+    }
+    final cs = await checkins(g).where('memberId', isEqualTo: m.id).get();
+    for (final d in cs.docs) {
+      await d.reference.delete();
+    }
+    final bs = await bookings(g).where('memberId', isEqualTo: m.id).get();
+    for (final d in bs.docs) {
+      await d.reference.delete();
+    }
+    if (m.cardCode.isNotEmpty) await _fs.collection('cardLinks').doc(m.cardCode).delete();
+    await ref.delete();
   }
 
   static Future<void> setArchived(String g, String memberId, bool v) =>
@@ -408,7 +440,10 @@ class GymDb {
 
   /// Registra l'ingresso; per i pacchetti scala un ingresso.
   static Future<void> checkin(String g, Member m, {required bool ok, String note = '', required String by}) async {
-    if (ok && m.subKind == 'entries') {
+    // un secondo passaggio entro 3 ore (es. esce e rientra) non scala un altro ingresso
+    final again = m.lastCheckin != null && DateTime.now().difference(m.lastCheckin!).inHours < 3;
+    if (again && note.isEmpty) note = 'Rientro';
+    if (ok && m.subKind == 'entries' && !again) {
       final q = await subs(g).where('memberId', isEqualTo: m.id).get();
       final today = DateTime.now();
       final s = q.docs.map(Subscription.fromDoc).where((s) => s.kind == 'entries' && s.activeOn(today)).toList()
@@ -426,7 +461,101 @@ class GymDb {
       'by': by,
     });
     await members(g).doc(m.id).update({'lastCheckin': FieldValue.serverTimestamp()});
-    if (ok && m.subKind == 'entries') await refreshSummary(g, m.id);
+    if (ok && m.subKind == 'entries' && !again) await refreshSummary(g, m.id);
+  }
+
+  // ---------------- corsi ----------------
+
+  static Stream<List<Course>> coursesStream(String g) => courses(g).snapshots().map((s) {
+        final l = s.docs.map(Course.fromDoc).toList();
+        l.sort((a, b) => a.weekday != b.weekday
+            ? a.weekday.compareTo(b.weekday)
+            : (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+        return l;
+      });
+
+  static Future<void> saveCourse(String g, Course c) =>
+      c.id.isEmpty ? courses(g).add(c.toMap()) : courses(g).doc(c.id).set(c.toMap());
+
+  static Future<void> deleteCourse(String g, String id) => courses(g).doc(id).delete();
+
+  /// Posti occupati per lezione (documento contatore aggiornato insieme alla prenotazione).
+  static Stream<Map<String, int>> lessonCounts(String g, DateTime from) => lessons(g)
+      .where('start', isGreaterThanOrEqualTo: Timestamp.fromDate(from))
+      .snapshots()
+      .map((s) => {for (final d in s.docs) d.id: ((d.data()['count'] as num?) ?? 0).toInt()});
+
+  static Stream<List<Booking>> lessonBookings(String g, String lessonId) =>
+      bookings(g).where('lessonId', isEqualTo: lessonId).snapshots().map((s) {
+        final l = s.docs.map(Booking.fromDoc).toList();
+        l.sort((a, b) => a.memberName.compareTo(b.memberName));
+        return l;
+      });
+
+  static Stream<List<Booking>> myBookings(String g, String uid) =>
+      bookings(g).where('uid', isEqualTo: uid).snapshots().map((s) {
+        final l = s.docs.map(Booking.fromDoc).where((b) => b.start.isAfter(DateTime.now().subtract(const Duration(hours: 2)))).toList();
+        l.sort((a, b) => a.start.compareTo(b.start));
+        return l;
+      });
+
+  /// Prenota un posto: controlla la capienza in una transazione.
+  static Future<void> book(String g, Lesson l, {required String memberId, required String memberName, String uid = ''}) async {
+    final lref = lessons(g).doc(l.id);
+    final bref = bookings(g).doc('${l.id}_$memberId');
+    await _fs.runTransaction((tx) async {
+      final ls = await tx.get(lref);
+      final bs = await tx.get(bref);
+      if (bs.exists) return;
+      final count = ((ls.data()?['count'] as num?) ?? 0).toInt();
+      if (count >= l.course.capacity) throw 'Lezione al completo';
+      tx.set(lref, {
+        'count': count + 1,
+        'capacity': l.course.capacity,
+        'courseId': l.course.id,
+        'start': Timestamp.fromDate(l.start),
+      }, SetOptions(merge: true));
+      tx.set(bref, {
+        'lessonId': l.id,
+        'courseId': l.course.id,
+        'courseName': l.course.name,
+        'start': Timestamp.fromDate(l.start),
+        'memberId': memberId,
+        'memberName': memberName,
+        'uid': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  static Future<void> cancelBooking(String g, String lessonId, String memberId) async {
+    final lref = lessons(g).doc(lessonId);
+    final bref = bookings(g).doc('${lessonId}_$memberId');
+    await _fs.runTransaction((tx) async {
+      final ls = await tx.get(lref);
+      final bs = await tx.get(bref);
+      if (!bs.exists) return;
+      final count = ((ls.data()?['count'] as num?) ?? 1).toInt();
+      tx.set(lref, {'count': count > 0 ? count - 1 : 0}, SetOptions(merge: true));
+      tx.delete(bref);
+    });
+  }
+
+  // ---------------- statistiche ----------------
+
+  static Future<List<Payment>> paymentsSince(String g, DateTime from) async {
+    final q = await payments(g).where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(from)).get();
+    return q.docs.map(Payment.fromDoc).toList();
+  }
+
+  static Future<List<Checkin>> checkinsFrom(String g, DateTime from) async {
+    final q = await checkins(g).where('at', isGreaterThanOrEqualTo: Timestamp.fromDate(from)).get();
+    return q.docs.map(Checkin.fromDoc).toList();
+  }
+
+  static Future<List<Subscription>> subsSince(String g, DateTime from) async {
+    final q = await subs(g).where('start', isGreaterThanOrEqualTo: Timestamp.fromDate(from)).get();
+    return q.docs.map(Subscription.fromDoc).toList();
   }
 
   // ---------------- lato socio (app dell'atleta) ----------------
@@ -494,4 +623,24 @@ class GymDb {
 
   static Future<void> unlinkCard(AppUser me) =>
       _fs.collection('users').doc(me.uid).update({'gymCard': null});
+}
+
+
+class _Replay<T> {
+  T? _last;
+  bool _has = false;
+  final _ctrl = StreamController<T>.broadcast();
+  _Replay(Stream<T> source) {
+    source.listen((v) {
+      _last = v;
+      _has = true;
+      _ctrl.add(v);
+    }, onError: _ctrl.addError);
+  }
+
+  Stream<T> get stream => Stream<T>.multi((c) {
+        if (_has) c.add(_last as T);
+        final sub = _ctrl.stream.listen(c.add, onError: c.addError);
+        c.onCancel = sub.cancel;
+      });
 }

@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../gym/gym_db.dart';
 import '../../gym/gym_models.dart';
 import '../../models.dart';
+import '../../notifications.dart';
 import '../../theme.dart';
 import '../common/widgets.dart';
 import '../gym/gym_widgets.dart';
@@ -104,6 +105,24 @@ class GymEntryCard extends StatefulWidget {
 
 class _GymEntryCardState extends State<GymEntryCard> {
   Stream<Member?>? _member;
+  String _reminded = '';
+
+  /// Promemoria sul telefono: abbonamento 3 giorni prima, certificato e iscrizione 7 giorni prima.
+  void _remind(Member m) {
+    final key = '${m.subEnd}-${m.cert.expiry}-${m.enrollEnd}';
+    if (key == _reminded) return;
+    _reminded = key;
+    DateTime at(DateTime d, int before) => DateTime(d.year, d.month, d.day, 10).subtract(Duration(days: before));
+    if (m.subEnd != null && m.subKind == 'time') {
+      Notifs.scheduleAt(920001, at(m.subEnd!, 3), 'Il tuo abbonamento scade il ${dmy(m.subEnd)}', 'Rinnovalo in reception per non restare fuori.');
+    }
+    if (m.cert.expiry != null) {
+      Notifs.scheduleAt(920002, at(m.cert.expiry!, 7), 'Certificato medico in scadenza', 'Scade il ${dmy(m.cert.expiry)}: portane uno nuovo in reception.');
+    }
+    if (m.enrollEnd != null) {
+      Notifs.scheduleAt(920003, at(m.enrollEnd!, 7), 'Iscrizione in scadenza', 'La tua iscrizione scade il ${dmy(m.enrollEnd)}.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +138,7 @@ class _GymEntryCardState extends State<GymEntryCard> {
         stream: _member,
         builder: (context, snap) {
           final m = snap.data;
+          if (m != null) _remind(m);
           return Column(children: [
             Text(gymName.toUpperCase(),
                 style: const TextStyle(fontSize: 11, letterSpacing: 1.6, color: BC.muted, fontWeight: FontWeight.w600)),

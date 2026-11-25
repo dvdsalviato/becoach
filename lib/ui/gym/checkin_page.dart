@@ -182,16 +182,11 @@ class _CheckinPageState extends State<CheckinPage> {
   }
 
   Widget _manual(List<Member> all) {
-    final q = _q.trim().toLowerCase();
+    final q = _q.trim();
     final res = q.isEmpty
         ? <Member>[]
         : all
-            .where((m) =>
-                !m.archived &&
-                (m.fullName.toLowerCase().contains(q) ||
-                    '${m.lastName} ${m.firstName}'.toLowerCase().contains(q) ||
-                    m.cardNumber.toString() == q ||
-                    m.cardCode.toLowerCase() == q))
+            .where((m) => !m.archived && (memberMatchesQuery(m, q) || m.cardCode.toLowerCase() == q.toLowerCase()))
             .take(6)
             .toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -365,7 +360,7 @@ class _CheckinPageState extends State<CheckinPage> {
             final wide = cons.maxWidth >= 900;
             if (!wide) {
               return ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                padding: const EdgeInsets.only(bottom: 32),
                 children: [
                   PageHeader(
                     overline: 'Reception',
@@ -376,9 +371,14 @@ class _CheckinPageState extends State<CheckinPage> {
                       label: const Text('Postazione ingresso'),
                     ),
                   ),
-                  ...left,
-                  const SizedBox(height: 16),
-                  ...right,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      ...left,
+                      const SizedBox(height: 16),
+                      ...right,
+                    ]),
+                  ),
                 ],
               );
             }

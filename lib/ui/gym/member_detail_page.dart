@@ -143,11 +143,28 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
                     await Navigator.push(context, gymRoute(context, (_) => MemberFormPage(member: m)));
                   } else if (v == 'archive') {
                     await GymDb.setArchived(gym.id, m.id, !m.archived);
+                  } else if (v == 'form') {
+                    await shareEnrollmentForm(gym, m);
+                  } else if (v == 'delete') {
+                    final ok = await confirm(
+                        context,
+                        'Elimina definitivamente',
+                        'Verranno cancellati anagrafica, foto, certificato, abbonamenti, ingressi e prenotazioni di ${m.fullName}. '
+                            'I pagamenti restano in cassa per la contabilità. L\'operazione non si può annullare.',
+                        ok: 'Elimina tutto',
+                        danger: true);
+                    if (ok) {
+                      await GymDb.deleteMember(gym.id, m);
+                      if (context.mounted) Navigator.pop(context);
+                    }
                   }
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'edit', child: Text('Modifica anagrafica')),
+                  const PopupMenuItem(value: 'form', child: Text('Stampa modulo d\'iscrizione')),
                   PopupMenuItem(value: 'archive', child: Text(m.archived ? 'Ripristina iscritto' : 'Archivia iscritto')),
+                  if (gym.isOwner(scope.me.uid))
+                    const PopupMenuItem(value: 'delete', child: Text('Elimina definitivamente', style: TextStyle(color: BC.danger))),
                 ],
               ),
             ],
@@ -415,6 +432,16 @@ class SubscriptionCard extends StatelessWidget {
                       sub.entriesUsed = n.clamp(0, sub.entriesTotal);
                       await GymDb.updateSubscription(scope.gym.id, sub);
                     }
+                  } else if (v == 'suspend') {
+                    final t = await askText(context,
+                        title: 'Sospendi per quanti giorni?', hint: 'es. 14', keyboard: TextInputType.number);
+                    final n = int.tryParse(t ?? '');
+                    if (n != null && n > 0) {
+                      sub.end = sub.end.add(Duration(days: n));
+                      sub.notes = [if (sub.notes.isNotEmpty) sub.notes, 'Sospeso $n gg il ${dmy(DateTime.now())}'].join(' · ');
+                      await GymDb.updateSubscription(scope.gym.id, sub);
+                      if (context.mounted) toast(context, 'Scadenza spostata al ${dmy(sub.end)}');
+                    }
                   } else if (v == 'end') {
                     if (!context.mounted) return;
                     final d = await pickDay(context, sub.end);
@@ -425,6 +452,7 @@ class SubscriptionCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
+                  if (sub.kind == 'time') const PopupMenuItem(value: 'suspend', child: Text('Sospendi (infortunio, ferie…)')),
                   if (sub.isAccess || sub.isEnroll) const PopupMenuItem(value: 'end', child: Text('Cambia scadenza')),
                   if (sub.kind == 'entries') const PopupMenuItem(value: 'entries', child: Text('Correggi ingressi usati')),
                   PopupMenuItem(value: sub.cancelled ? 'restore' : 'cancel', child: Text(sub.cancelled ? 'Ripristina' : 'Annulla abbonamento')),
