@@ -59,7 +59,7 @@ class ProfilePage extends StatelessWidget {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('Apri il gestionale', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
-                    Text('Soci, abbonamenti, certificati, ingressi e cassa', style: TextStyle(fontSize: 13, color: BC.muted)),
+                    Text('Iscritti, abbonamenti, certificati, ingressi e cassa', style: TextStyle(fontSize: 13, color: BC.muted)),
                   ]),
                 ),
                 Icon(Icons.chevron_right, color: BC.disabled),
@@ -384,7 +384,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 1.8.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 1.9', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),

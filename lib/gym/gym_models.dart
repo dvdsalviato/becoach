@@ -47,6 +47,7 @@ class Gym {
   final String joinCode;
   final String receiptNote;
   final int certWarnDays;
+  final bool requireEnrollment; // per entrare serve l'iscrizione (tessera) valida
 
   Gym({
     required this.id,
@@ -63,6 +64,7 @@ class Gym {
     this.joinCode = '',
     this.receiptNote = '',
     this.certWarnDays = 30,
+    this.requireEnrollment = true,
   });
 
   factory Gym.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -82,6 +84,7 @@ class Gym {
       joinCode: _s(m['joinCode']),
       receiptNote: _s(m['receiptNote']),
       certWarnDays: _i(m['certWarnDays'], 30),
+      requireEnrollment: m['requireEnrollment'] != false,
     );
   }
 
@@ -178,6 +181,9 @@ class Member {
   DateTime? nextDue;
   double dueAmount;
   DateTime? lastCheckin;
+  DateTime? enrollStart; // iscrizione / tessera annuale
+  DateTime? enrollEnd;
+  String accountEmail; // credenziali create dalla segreteria
 
   Member({
     this.id = '',
@@ -213,6 +219,9 @@ class Member {
     this.nextDue,
     this.dueAmount = 0,
     this.lastCheckin,
+    this.enrollStart,
+    this.enrollEnd,
+    this.accountEmail = '',
   });
 
   factory Member.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -252,6 +261,9 @@ class Member {
       nextDue: _t(m['nextDue']),
       dueAmount: _d(m['dueAmount']),
       lastCheckin: _t(m['lastCheckin']),
+      enrollStart: _t(m['enrollStart']),
+      enrollEnd: _t(m['enrollEnd']),
+      accountEmail: _s(m['accountEmail']),
     );
   }
 
@@ -297,6 +309,15 @@ class Member {
     if (subKind == 'entries' && entriesLeft <= 0) return false;
     return true;
   }
+
+  bool get enrollActive {
+    if (enrollEnd == null) return false;
+    final today = dayOnly(DateTime.now());
+    if (enrollStart != null && today.isBefore(dayOnly(enrollStart!))) return false;
+    return !today.isAfter(dayOnly(enrollEnd!));
+  }
+
+  int? get enrollDaysLeft => enrollEnd == null ? null : dayOnly(enrollEnd!).difference(dayOnly(DateTime.now())).inDays;
 
   int? get subDaysLeft => subEnd == null ? null : dayOnly(subEnd!).difference(dayOnly(DateTime.now())).inDays;
 
@@ -365,6 +386,10 @@ class PriceItem {
 
   String get durationLabel {
     if (kind == 'other') return 'Prodotto / servizio';
+    if (kind == 'enroll') {
+      final p = <String>[if (months > 0) months == 1 ? '1 mese' : '$months mesi', if (days > 0) '$days giorni'];
+      return 'Iscrizione · ${p.isEmpty ? '—' : p.join(' e ')}';
+    }
     final parts = <String>[];
     if (months > 0) parts.add(months == 1 ? '1 mese' : '$months mesi');
     if (days > 0) parts.add(days == 1 ? '1 giorno' : '$days giorni');
@@ -499,6 +524,7 @@ class Subscription {
   double get dueAmount => cancelled ? 0 : installments.where((i) => !i.paid).fold(0.0, (a, i) => a + i.amount);
   int get entriesLeft => entriesTotal - entriesUsed;
   bool get isAccess => kind == 'time' || kind == 'entries';
+  bool get isEnroll => kind == 'enroll';
 
   bool activeOn(DateTime day) {
     if (cancelled || !isAccess) return false;
@@ -608,7 +634,16 @@ class AccessCheck {
 AccessCheck checkAccess(Member m, Gym g) {
   final problems = <String>[];
   final warnings = <String>[];
-  if (m.archived) problems.add('Socio archiviato');
+  if (m.archived) problems.add('Iscritto archiviato');
+  if (g.requireEnrollment) {
+    if (m.enrollEnd == null) {
+      problems.add('Iscrizione (tessera) mancante');
+    } else if (!m.enrollActive) {
+      problems.add('Iscrizione scaduta il ${dmy(m.enrollEnd)}');
+    } else if ((m.enrollDaysLeft ?? 99) <= 7) {
+      warnings.add('Iscrizione scade il ${dmy(m.enrollEnd)}');
+    }
+  }
   if (!m.subActive) {
     if (m.subEnd == null) {
       problems.add('Nessun abbonamento');

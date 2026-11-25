@@ -7,7 +7,7 @@ import '../common/widgets.dart';
 import 'gym_shell.dart';
 import 'gym_widgets.dart';
 
-/// Nuovo socio o modifica dell'anagrafica.
+/// Nuovo iscritto o modifica dell'anagrafica.
 class MemberFormPage extends StatefulWidget {
   final Member? member;
   const MemberFormPage({super.key, this.member});
@@ -125,7 +125,7 @@ class _MemberFormPageState extends State<MemberFormPage> {
   Widget build(BuildContext context) {
     const words = TextCapitalization.words;
     return Scaffold(
-      appBar: AppBar(title: Text(m.id.isEmpty ? 'Nuovo socio' : 'Modifica socio')),
+      appBar: AppBar(title: Text(m.id.isEmpty ? 'Nuovo iscritto' : 'Modifica iscritto')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -170,7 +170,7 @@ class _MemberFormPageState extends State<MemberFormPage> {
           const SizedBox(height: 18),
           FilledButton(
             onPressed: _busy ? null : _save,
-            child: Text(m.id.isEmpty ? 'Crea socio e tessera' : 'Salva'),
+            child: Text(m.id.isEmpty ? 'Crea iscritto e tessera' : 'Salva'),
           ),
         ],
       ),

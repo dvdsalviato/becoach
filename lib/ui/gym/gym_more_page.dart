@@ -40,7 +40,7 @@ class GymMorePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              item(Icons.sell_outlined, 'Listino', 'Abbonamenti, pacchetti ingressi e prodotti', const PriceListPage()),
+              item(Icons.sell_outlined, 'Listino', 'Iscrizione, abbonamenti, pacchetti ingressi e prodotti', const PriceListPage()),
               const SizedBox(height: 8),
               item(Icons.storefront_outlined, 'Dati della palestra', 'Ragione sociale, P. IVA, indirizzo per le ricevute', const GymInfoPage()),
               const SizedBox(height: 8),
@@ -66,7 +66,7 @@ class GymMorePage extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 16),
-              const Center(child: Text('BeCoach 1.8.1 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
+              const Center(child: Text('BeCoach 1.9 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
             ]),
           ),
         ],
@@ -132,6 +132,7 @@ class PriceListPage extends StatelessWidget {
 
   Future<void> _seed(String g) async {
     final items = [
+      PriceItem(name: 'Iscrizione annuale (tessera)', kind: 'enroll', months: 12, price: 30),
       PriceItem(name: 'Mensile', kind: 'time', months: 1, price: 50),
       PriceItem(name: 'Trimestrale', kind: 'time', months: 3, price: 135),
       PriceItem(name: 'Semestrale', kind: 'time', months: 6, price: 250),
@@ -213,6 +214,7 @@ class _PriceSheetState extends State<_PriceSheet> {
           segments: const [
             ButtonSegment(value: 'time', label: Text('A tempo')),
             ButtonSegment(value: 'entries', label: Text('Ingressi')),
+            ButtonSegment(value: 'enroll', label: Text('Iscrizione')),
             ButtonSegment(value: 'other', label: Text('Prodotto')),
           ],
           selected: {p.kind},
@@ -283,6 +285,7 @@ class GymInfoPage extends StatefulWidget {
 class _GymInfoPageState extends State<GymInfoPage> {
   final _c = <String, TextEditingController>{};
   bool _busy = false;
+  bool? _req;
 
   TextEditingController _ctl(String k, String v) => _c.putIfAbsent(k, () => TextEditingController(text: v));
 
@@ -297,6 +300,7 @@ class _GymInfoPageState extends State<GymInfoPage> {
   @override
   Widget build(BuildContext context) {
     final g = GymScope.of(context).gym;
+    _req ??= g.requireEnrollment;
     final fields = {
       'name': ('Nome della palestra', g.name),
       'legalName': ('Ragione sociale', g.legalName),
@@ -322,6 +326,14 @@ class _GymInfoPageState extends State<GymInfoPage> {
             ),
             const SizedBox(height: 12),
           ],
+          SwitchListTile(
+            value: _req!,
+            onChanged: (v) => setState(() => _req = v),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Per entrare serve l\'iscrizione valida'),
+            subtitle: const Text('Oltre ad abbonamento e certificato, controlla la tessera di iscrizione annuale'),
+          ),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: _busy
                 ? null
@@ -331,6 +343,7 @@ class _GymInfoPageState extends State<GymInfoPage> {
                       final data = <String, dynamic>{
                         for (final k in fields.keys) if (k != 'certWarnDays') k: _c[k]!.text.trim(),
                         'certWarnDays': int.tryParse(_c['certWarnDays']!.text) ?? 30,
+                        'requireEnrollment': _req ?? true,
                       };
                       await GymDb.updateGym(g.id, data);
                       if (context.mounted) Navigator.pop(context);

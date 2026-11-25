@@ -41,6 +41,10 @@ class _SellSheetState extends State<_SellSheet> {
   DateTime _defaultStart() {
     final m = widget.m;
     final today = dayOnly(DateTime.now());
+    if (_kind == 'enroll') {
+      // rinnovo iscrizione: parte dalla scadenza della precedente se è ancora valida
+      return m.enrollActive && m.enrollEnd != null ? dayOnly(m.enrollEnd!).add(const Duration(days: 1)) : today;
+    }
     if (m.subActive && m.subKind == 'time' && m.subEnd != null) {
       return dayOnly(m.subEnd!).add(const Duration(days: 1)); // rinnovo: parte dal giorno dopo la scadenza
     }
@@ -67,6 +71,7 @@ class _SellSheetState extends State<_SellSheet> {
       if (p != null) {
         _name.text = p.name;
         _kind = p.kind;
+        _start = _defaultStart();
         _listPrice = p.price;
         _price.text = euroInput(p.price);
         _entries.text = '${p.entries}';
@@ -94,8 +99,8 @@ class _SellSheetState extends State<_SellSheet> {
     final price = parseEuro(_price.text);
     if (_name.text.trim().isEmpty) { setState(() => _error = 'Scegli dal listino o scrivi il nome'); return; }
     if (price == null || price < 0) { setState(() => _error = 'Prezzo non valido'); return; }
-    final isAccess = _kind != 'other';
-    if (isAccess && (_end == null || _end!.isBefore(_start))) { setState(() => _error = 'Controlla le date'); return; }
+    final isAccess = _kind == 'time' || _kind == 'entries';
+    if (_kind != 'other' && (_end == null || _end!.isBefore(_start))) { setState(() => _error = 'Controlla le date'); return; }
     final entries = int.tryParse(_entries.text) ?? 0;
     if (_kind == 'entries' && entries <= 0) { setState(() => _error = 'Numero ingressi non valido'); return; }
     final inst = _plan(price);
@@ -112,7 +117,7 @@ class _SellSheetState extends State<_SellSheet> {
       name: _name.text.trim(),
       kind: _kind,
       start: _start,
-      end: isAccess ? _end! : _start,
+      end: isAccess || _kind == 'enroll' ? _end! : _start,
       entriesTotal: _kind == 'entries' ? entries : 0,
       listPrice: _listPrice > 0 ? _listPrice : price,
       price: price,
@@ -180,11 +185,13 @@ class _SellSheetState extends State<_SellSheet> {
               segments: const [
                 ButtonSegment(value: 'time', label: Text('A tempo')),
                 ButtonSegment(value: 'entries', label: Text('Ingressi')),
+                ButtonSegment(value: 'enroll', label: Text('Iscrizione')),
                 ButtonSegment(value: 'other', label: Text('Prodotto')),
               ],
               selected: {_kind},
               onSelectionChanged: (v) => setState(() {
                 _kind = v.first;
+                _start = _defaultStart();
                 if (_kind != 'other') _end ??= addMonths(_start, 1).subtract(const Duration(days: 1));
               }),
             ),

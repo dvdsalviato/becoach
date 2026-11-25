@@ -87,7 +87,7 @@ class _GymShellState extends State<GymShell> {
                 selectedIcon: Icons.space_dashboard,
                 label: 'Home',
                 page: GymHomePage(scroll: _homeScroll, openTab: _setTab)),
-            const ShellItem(icon: Icons.badge_outlined, label: 'Soci', page: MembersPage(), fullWidth: true),
+            const ShellItem(icon: Icons.badge_outlined, label: 'Iscritti', page: MembersPage(), fullWidth: true),
             const ShellItem(icon: Icons.qr_code_scanner, label: 'Ingressi', page: CheckinPage(), fullWidth: true),
             const ShellItem(icon: Icons.point_of_sale_outlined, label: 'Cassa', page: CashPage()),
             const ShellItem(icon: Icons.tune, label: 'Altro', page: GymMorePage()),
@@ -206,7 +206,7 @@ class _GymSetupPageState extends State<GymSetupPage> {
             const Text('Gestionale palestra',
                 style: TextStyle(fontFamily: BC.display, fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
             const SizedBox(height: 6),
-            const Text('Soci, abbonamenti, certificati medici, ingressi con tessera QR e prima nota.',
+            const Text('Iscritti, abbonamenti, certificati medici, ingressi con tessera QR e prima nota.',
                 style: TextStyle(color: BC.muted, height: 1.4)),
             const SectionLabel('Sono il titolare'),
             Panel(

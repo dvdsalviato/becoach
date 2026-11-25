@@ -106,7 +106,7 @@ class _RoleSetupPageState extends State<RoleSetupPage> {
               'Segui la scheda del tuo coach e registra i carichi.'),
           const SizedBox(height: 10),
           _choice('gym', Icons.storefront_outlined, 'Gestisco una palestra',
-              'Soci, abbonamenti, certificati, ingressi con tessera e cassa.'),
+              'Iscritti, abbonamenti, certificati, ingressi con tessera e cassa.'),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _busy ? null : _go,

@@ -11,6 +11,7 @@ import '../../util.dart';
 import '../common/widgets.dart';
 import 'gym_shell.dart';
 import 'gym_widgets.dart';
+import 'kiosk_page.dart';
 import 'members_page.dart';
 
 /// Ingressi: scansione della tessera (QR) o ricerca, controllo abbonamento e certificato.
@@ -166,7 +167,7 @@ class _CheckinPageState extends State<CheckinPage> {
                 child: FilledButton.icon(
                   onPressed: _toggleCam,
                   icon: Icon(cam == null ? Icons.qr_code_scanner : Icons.videocam_off_outlined, size: 18),
-                  label: Text(cam == null ? 'Avvia scanner tessere' : 'Spegni fotocamera'),
+                  label: Text(cam == null ? 'Leggi QR con la fotocamera' : 'Spegni fotocamera'),
                 ),
               ),
               if (cam != null) ...[
@@ -254,7 +255,7 @@ class _CheckinPageState extends State<CheckinPage> {
           child: Column(children: [
             Icon(Icons.badge_outlined, size: 36, color: BC.steelLight),
             SizedBox(height: 8),
-            Text('Scansiona una tessera o cerca un socio', style: TextStyle(color: BC.muted)),
+            Text('Scansiona una tessera o cerca un iscritto', style: TextStyle(color: BC.muted)),
           ]),
         ),
       );
@@ -280,7 +281,7 @@ class _CheckinPageState extends State<CheckinPage> {
               Text(m.fullName, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
               Text('${m.cardLabel}${m.subName.isNotEmpty ? ' · ${m.subName}' : ''}', style: const TextStyle(color: BC.body)),
               const SizedBox(height: 6),
-              Wrap(spacing: 6, runSpacing: 4, children: [subTag(m), certTag(m, gym.certWarnDays)]),
+              Wrap(spacing: 6, runSpacing: 4, children: [enrollTag(m), subTag(m), certTag(m, gym.certWarnDays)]),
             ]),
           ),
         ]),
@@ -314,7 +315,7 @@ class _CheckinPageState extends State<CheckinPage> {
             Expanded(child: OutlinedButton(onPressed: _force, child: const Text('Fai entrare comunque'))),
           if (!_registered && c.ok) const Spacer(),
           const SizedBox(width: 8),
-          TextButton(onPressed: () => openMember(context, m.id), child: const Text('Scheda socio')),
+          TextButton(onPressed: () => openMember(context, m.id), child: const Text('Scheda iscritto')),
         ]),
       ]),
     );
@@ -366,7 +367,15 @@ class _CheckinPageState extends State<CheckinPage> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 children: [
-                  const PageHeader(overline: 'Reception', title: 'Ingressi'),
+                  PageHeader(
+                    overline: 'Reception',
+                    title: 'Ingressi',
+                    trailing: FilledButton.icon(
+                      onPressed: () => Navigator.push(context, gymRoute(context, (_) => const KioskPage())),
+                      icon: const Icon(Icons.sensor_door_outlined, size: 18),
+                      label: const Text('Postazione ingresso'),
+                    ),
+                  ),
                   ...left,
                   const SizedBox(height: 16),
                   ...right,
@@ -374,7 +383,15 @@ class _CheckinPageState extends State<CheckinPage> {
               );
             }
             return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const PageHeader(overline: 'Reception', title: 'Ingressi'),
+              PageHeader(
+                    overline: 'Reception',
+                    title: 'Ingressi',
+                    trailing: FilledButton.icon(
+                      onPressed: () => Navigator.push(context, gymRoute(context, (_) => const KioskPage())),
+                      icon: const Icon(Icons.sensor_door_outlined, size: 18),
+                      label: const Text('Postazione ingresso'),
+                    ),
+                  ),
               Expanded(
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   SizedBox(

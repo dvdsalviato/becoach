@@ -140,7 +140,7 @@ Future<void> _saveCsv(String name, List<List<Object?>> rows) async {
 /// Prima nota del periodo, per il commercialista (si apre con Excel).
 Future<void> exportPayments(String gymName, String period, List<Payment> list) async {
   final rows = <List<Object?>>[
-    ['Data', 'N. ricevuta', 'Tipo', 'Categoria', 'Descrizione', 'Socio', 'Metodo', 'Entrata', 'Uscita'],
+    ['Data', 'N. ricevuta', 'Tipo', 'Categoria', 'Descrizione', 'Iscritto', 'Metodo', 'Entrata', 'Uscita'],
     for (final p in list.reversed)
       [
         dmy(p.date),
@@ -174,14 +174,22 @@ Future<void> exportPayments(String gymName, String period, List<Payment> list) a
 Future<void> exportMembers(String gymName, List<Member> list) async {
   await _saveCsv('Soci_${_safe(gymName)}.csv', [
     ['Tessera', 'Cognome', 'Nome', 'Codice fiscale', 'Nascita', 'Luogo nascita', 'Telefono', 'Email', 'Indirizzo', 'CAP', 'Città',
-      'Abbonamento', 'Scadenza abbonamento', 'Ingressi residui', 'Scadenza certificato', 'Certificato verificato', 'Da incassare',
+      'Scadenza iscrizione', 'Abbonamento', 'Scadenza abbonamento', 'Ingressi residui', 'Scadenza certificato', 'Certificato verificato', 'Da incassare',
       'Privacy', 'Dati sanitari', 'Marketing', 'Archiviato'],
     for (final m in list)
       [
         m.cardNumber, m.lastName, m.firstName, m.taxCode, dmy(m.birthDate), m.birthPlace, m.phone, m.email, m.address, m.zip, m.city,
-        m.subName, dmy(m.subEnd), m.subKind == 'entries' ? m.entriesLeft : '', dmy(m.cert.expiry), m.cert.verified ? 'Sì' : 'No',
+        dmy(m.enrollEnd), m.subName, dmy(m.subEnd), m.subKind == 'entries' ? m.entriesLeft : '', dmy(m.cert.expiry), m.cert.verified ? 'Sì' : 'No',
         m.dueAmount > 0 ? _num(m.dueAmount) : '', m.privacy ? 'Sì' : 'No', m.healthData ? 'Sì' : 'No', m.marketing ? 'Sì' : 'No',
         m.archived ? 'Sì' : 'No',
       ],
+  ]);
+}
+
+/// Estratto delle scadenze (abbonamenti, iscrizioni o certificati) nel periodo scelto.
+Future<void> exportExpiring(String gymName, String what, String period, List<(Member, DateTime)> rows) async {
+  await _saveCsv('Scadenze_${_safe(what)}_${_safe(period)}.csv', [
+    ['Scadenza', 'Cognome', 'Nome', 'Tessera', 'Telefono', 'Email', 'Abbonamento'],
+    for (final r in rows) [dmy(r.$2), r.$1.lastName, r.$1.firstName, r.$1.cardNumber, r.$1.phone, r.$1.email, r.$1.subName],
   ]);
 }

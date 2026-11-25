@@ -108,7 +108,7 @@ class _TodayPageState extends State<TodayPage> {
                       children: [
                         if (me.gymCard != null) ...[
                           const SizedBox(height: 8),
-                          GymCardPanel(key: ValueKey('gct-${me.gymCard?['code']}'), me: me, compact: true),
+                          GymEntryCard(key: ValueKey('gct-${me.gymCard?['code']}'), me: me),
                         ],
                         if (me.hasCoach) AthleteAppointments(key: ValueKey(me.coachId), me: me),
                         if (live != null) ...[
@@ -148,7 +148,7 @@ class _TodayPageState extends State<TodayPage> {
                             ),
                           ),
                         ],
-                        if (!me.hasCoach) ...[
+                        if (!me.hasCoach && me.gymCard == null) ...[
                           const SizedBox(height: 16),
                           Panel(
                             child: Column(
@@ -172,7 +172,7 @@ class _TodayPageState extends State<TodayPage> {
                               ],
                             ),
                           ),
-                        ] else if (plan == null) ...[
+                        ] else if (!me.hasCoach) ...<Widget>[] else if (plan == null) ...[
                           const SizedBox(height: 40),
                           EmptyState(
                             icon: Icons.assignment_outlined,

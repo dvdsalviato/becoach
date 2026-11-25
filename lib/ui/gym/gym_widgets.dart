@@ -176,3 +176,11 @@ double? parseEuro(String s) {
 }
 
 String euroInput(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2).replaceAll('.', ',');
+
+Widget enrollTag(Member m) {
+  if (m.enrollEnd == null) return const StatusTag.neutral('Iscrizione mancante');
+  if (!m.enrollActive) return StatusTag.bad('Iscrizione scaduta ${dmy(m.enrollEnd)}');
+  final dl = m.enrollDaysLeft ?? 99;
+  if (dl <= 15) return StatusTag.warn('Iscrizione scade ${dmy(m.enrollEnd)}');
+  return StatusTag.ok('Iscritto fino al ${dmy(m.enrollEnd)}');
+}

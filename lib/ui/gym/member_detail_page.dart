@@ -12,6 +12,7 @@ import '../../theme.dart';
 import '../../util.dart';
 import '../common/widgets.dart';
 import 'gym_shell.dart';
+import 'credentials.dart';
 import 'gym_widgets.dart';
 import 'member_form.dart';
 import 'sell_sheet.dart';
@@ -84,8 +85,8 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
             const SizedBox(height: 6),
             Text(
               m.linkedUid.isNotEmpty
-                  ? 'Collegata all\'app BeCoach del socio.'
-                  : 'Il socio può inserire questo codice nell\'app BeCoach (Profilo → Tessera palestra) e avere il QR sul telefono.',
+                  ? 'Collegata all\'app BeCoach dell'iscritto.'
+                  : 'L'iscritto può inserire questo codice nell\'app BeCoach (Profilo → Tessera palestra) e avere il QR sul telefono.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: BC.muted, height: 1.4),
             ),
@@ -127,7 +128,7 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
       builder: (context, snap) {
         if (snap.hasError) return Scaffold(appBar: AppBar(), body: ErrorBox(friendlyError(snap.error!)));
         if (!snap.hasData) {
-          return Scaffold(appBar: AppBar(), body: snap.connectionState == ConnectionState.waiting ? const Loading() : const ErrorBox('Socio non trovato'));
+          return Scaffold(appBar: AppBar(), body: snap.connectionState == ConnectionState.waiting ? const Loading() : const ErrorBox('Iscritto non trovato'));
         }
         final m = snap.data!;
         final access = checkAccess(m, gym);
@@ -146,7 +147,7 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'edit', child: Text('Modifica anagrafica')),
-                  PopupMenuItem(value: 'archive', child: Text(m.archived ? 'Ripristina socio' : 'Archivia socio')),
+                  PopupMenuItem(value: 'archive', child: Text(m.archived ? 'Ripristina iscritto' : 'Archivia iscritto')),
                 ],
               ),
             ],
@@ -192,6 +193,7 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
                         const SizedBox(height: 8),
                         Wrap(spacing: 6, runSpacing: 4, children: [
                           if (m.archived) const StatusTag.neutral('Archiviato'),
+                          enrollTag(m),
                           subTag(m),
                           certTag(m, gym.certWarnDays),
                           if (m.linkedUid.isNotEmpty) const StatusTag.neutral('App collegata'),
@@ -231,7 +233,7 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
                   FilledButton.icon(
                     onPressed: () => showSellSheet(context, m),
                     icon: const Icon(Icons.add_card, size: 18),
-                    label: const Text('Vendi abbonamento'),
+                    label: const Text('Vendi abbonamento / iscrizione'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _checkin(m),
@@ -259,6 +261,8 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
               ),
               const SectionLabel('Certificato medico'),
               CertPanel(m: m),
+              const SectionLabel('App dell\'iscritto'),
+              AppAccessPanel(m: m),
               const SectionLabel('Pagamenti'),
               StreamBuilder<List<Payment>>(
                 stream: _pays,
@@ -360,7 +364,10 @@ class SubscriptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = GymScope.of(context);
-    final active = sub.activeOn(DateTime.now());
+    final today = dayOnly(DateTime.now());
+    final active = sub.isEnroll
+        ? !sub.cancelled && !today.isBefore(dayOnly(sub.start)) && !today.isAfter(dayOnly(sub.end))
+        : sub.activeOn(DateTime.now());
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Panel(
@@ -378,7 +385,7 @@ class SubscriptionCard extends StatelessWidget {
                 const StatusTag.ok('In corso')
               else if (dayOnly(sub.start).isAfter(dayOnly(DateTime.now())))
                 const StatusTag.neutral('Futuro')
-              else if (sub.isAccess)
+              else if (sub.isAccess || sub.isEnroll)
                 const StatusTag.neutral('Concluso'),
               PopupMenuButton<String>(
                 onSelected: (v) async {
@@ -418,7 +425,7 @@ class SubscriptionCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  if (sub.isAccess) const PopupMenuItem(value: 'end', child: Text('Cambia scadenza')),
+                  if (sub.isAccess || sub.isEnroll) const PopupMenuItem(value: 'end', child: Text('Cambia scadenza')),
                   if (sub.kind == 'entries') const PopupMenuItem(value: 'entries', child: Text('Correggi ingressi usati')),
                   PopupMenuItem(value: sub.cancelled ? 'restore' : 'cancel', child: Text(sub.cancelled ? 'Ripristina' : 'Annulla abbonamento')),
                   const PopupMenuItem(value: 'delete', child: Text('Elimina (inserito per errore)')),
@@ -427,7 +434,8 @@ class SubscriptionCard extends StatelessWidget {
             ]),
             Text(
               [
-                if (sub.isAccess) '${dmy(sub.start)} → ${dmy(sub.end)}',
+                if (sub.isEnroll) 'Iscrizione',
+                if (sub.isAccess || sub.isEnroll) '${dmy(sub.start)} → ${dmy(sub.end)}',
                 if (sub.kind == 'entries') '${sub.entriesLeft} di ${sub.entriesTotal} ingressi',
                 euro(sub.price) + (sub.listPrice > sub.price ? ' (listino ${euro(sub.listPrice)})' : ''),
               ].join(' · '),

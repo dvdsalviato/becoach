@@ -2,6 +2,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../models.dart';
 import 'gym_models.dart';
@@ -112,7 +114,7 @@ class GymDb {
   static Stream<Member?> memberStream(String g, String id) =>
       members(g).doc(id).snapshots().map((d) => d.exists ? Member.fromDoc(d) : null);
 
-  /// Nuovo socio: numero tessera progressivo e codice per QR/app.
+  /// Nuovo iscritto: numero tessera progressivo e codice per QR/app.
   static Future<String> createMember(String g, Member m) async {
     final ref = members(g).doc();
     String code = _code(8);
@@ -171,6 +173,14 @@ class GymDb {
 
   static Future<Member?> findByCode(String g, String code) async {
     final raw = code.trim().toUpperCase().replaceFirst('BECOACH:', '');
+    if (raw.startsWith('T:')) {
+      // QR dinamico dell'app: valido pochi minuti, così uno screenshot non serve a niente
+      final q = await members(g).where('qrToken', isEqualTo: raw.substring(2)).limit(1).get();
+      if (q.docs.isEmpty) return null;
+      final at = (q.docs.first.data()['qrAt'] as Timestamp?)?.toDate();
+      if (at == null || DateTime.now().difference(at).inMinutes.abs() > 5) throw 'QR scaduto: chiedi di riaprire l\'app';
+      return Member.fromDoc(q.docs.first);
+    }
     final link = await _fs.collection('cardLinks').doc(raw).get();
     if (link.exists && link.data()?['gymId'] == g) {
       final d = await members(g).doc(link.data()!['memberId'] as String).get();
@@ -312,6 +322,8 @@ class GymDb {
         }
       }
     }
+    final enr = all.where((s) => s.isEnroll).toList()..sort((a, b) => a.end.compareTo(b.end));
+    final enrCur = enr.where((s) => !dayOnly(s.start).isAfter(today) && !today.isAfter(dayOnly(s.end))).lastOrNull ?? enr.lastOrNull;
     final unpaid = <Installment>[];
     for (final s in all) {
       unpaid.addAll(s.installments.where((i) => !i.paid));
@@ -325,6 +337,8 @@ class GymDb {
       'entriesLeft': cur?.kind == 'entries' ? cur!.entriesLeft : 0,
       'nextDue': unpaid.isEmpty ? null : Timestamp.fromDate(unpaid.first.due),
       'dueAmount': unpaid.fold<double>(0, (a, i) => a + i.amount),
+      'enrollStart': enrCur == null ? null : Timestamp.fromDate(enrCur.start),
+      'enrollEnd': enr.isEmpty ? null : Timestamp.fromDate(enr.last.end),
     });
   }
 
@@ -430,6 +444,52 @@ class GymDb {
       'gymCard': {'gymId': g, 'memberId': mid, 'code': raw, 'gymName': gname ?? 'Palestra'},
     });
     return true;
+  }
+
+  /// Crea l'account dell'iscritto (email + password temporanea) senza far uscire la segreteria:
+  /// usa una seconda istanza di Firebase, scrive il profilo come nuovo utente e collega la tessera.
+  static Future<void> createAccount(String g, String gymName, Member m, String email, String password) async {
+    final app = Firebase.apps.where((a) => a.name == 'account-creator').firstOrNull ??
+        await Firebase.initializeApp(name: 'account-creator', options: Firebase.app().options);
+    final auth = FirebaseAuth.instanceFor(app: app);
+    final fs = FirebaseFirestore.instanceFor(app: app);
+    try {
+      final cred = await auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+      final uid = cred.user!.uid;
+      await cred.user!.updateDisplayName(m.fullName);
+      await fs.collection('users').doc(uid).set({
+        'name': m.fullName,
+        'firstName': m.firstName,
+        'lastName': m.lastName,
+        'email': email.trim(),
+        'phone': m.phone,
+        'isCoach': false,
+        'coachMode': false,
+        'gymMode': false,
+        'goal': '',
+        'gymCard': {'gymId': g, 'memberId': m.id, 'code': m.cardCode, 'gymName': gymName},
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      await fs.collection('gyms').doc(g).collection('members').doc(m.id).update({'linkedUid': uid});
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw 'Questa email ha già un account BeCoach: dai all\'iscritto il codice tessera ${m.cardCode}, '
+            'lo inserisce in Profilo → Tessera palestra.';
+      }
+      if (e.code == 'invalid-email') throw 'Email non valida';
+      if (e.code == 'operation-not-allowed') throw 'In Firebase → Authentication va attivato l\'accesso con email e password';
+      rethrow;
+    } finally {
+      await auth.signOut();
+    }
+    await members(g).doc(m.id).update({'accountEmail': email.trim()});
+  }
+
+  /// Nuovo codice per il QR d'ingresso (lo genera l'app del socio a ogni apertura).
+  static Future<String> refreshQrToken(String g, String memberId) async {
+    final t = _code(12);
+    await members(g).doc(memberId).update({'qrToken': t, 'qrAt': FieldValue.serverTimestamp()});
+    return t;
   }
 
   static Future<void> unlinkCard(AppUser me) =>

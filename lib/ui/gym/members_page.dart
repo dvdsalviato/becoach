@@ -102,8 +102,8 @@ class _MembersPageState extends State<MembersPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 PageHeader(
-                  overline: '${all.where((m) => !m.archived).length} soci',
-                  title: 'Soci',
+                  overline: '${all.where((m) => !m.archived).length} iscritti',
+                  title: 'Iscritti',
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     IconButton(
                       tooltip: 'Esporta elenco (Excel)',
@@ -149,12 +149,12 @@ class _MembersPageState extends State<MembersPage> {
                   child: list.isEmpty
                       ? EmptyState(
                           icon: Icons.badge_outlined,
-                          title: all.isEmpty ? 'Nessun socio' : 'Nessun risultato',
+                          title: all.isEmpty ? 'Nessun iscritto' : 'Nessun risultato',
                           text: all.isEmpty
-                              ? 'Aggiungi il primo socio: anagrafica, foto, certificato e abbonamento.'
+                              ? 'Aggiungi il primo iscritto: anagrafica, foto, certificato e abbonamento.'
                               : 'Prova a cambiare filtro o ricerca.',
                           action: all.isEmpty
-                              ? FilledButton(onPressed: () => newMember(context), child: const Text('Nuovo socio'))
+                              ? FilledButton(onPressed: () => newMember(context), child: const Text('Nuovo iscritto'))
                               : null,
                         )
                       : ListView.separated(
@@ -205,6 +205,7 @@ class MemberTile extends StatelessWidget {
                 ]),
                 const SizedBox(height: 5),
                 Wrap(spacing: 6, runSpacing: 4, children: [
+                  if (!m.enrollActive) enrollTag(m),
                   subTag(m),
                   if (cs != CertState.ok) certTag(m, warnDays),
                   if (m.dueAmount > 0)

@@ -62,7 +62,9 @@ service cloud.firestore {
         allow update: if isStaff(g)
           || (signedIn() && resource.data.get('linkedUid', '') == ''
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
-              && request.resource.data.linkedUid == me());
+              && request.resource.data.linkedUid == me())
+          || (signedIn() && resource.data.get('linkedUid', '') == me()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['qrToken', 'qrAt']));
         match /files/{f} { allow read, write: if isStaff(g); }
       }
       match /{coll}/{id} {
