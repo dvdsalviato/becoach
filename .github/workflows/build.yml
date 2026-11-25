@@ -81,7 +81,7 @@ jobs:
             --notes-file WHATSNEW.md
 
       - name: Build web (iPhone)
-        run: flutter build web --release --base-href /becoach/ --build-number=${{ github.run_number }}
+        run: flutter build web --pwa-strategy=none --release --base-href /becoach/ --build-number=${{ github.run_number }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

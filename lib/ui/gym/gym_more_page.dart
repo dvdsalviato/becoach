@@ -66,7 +66,7 @@ class GymMorePage extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 16),
-              const Center(child: Text('BeCoach 1.8 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
+              const Center(child: Text('BeCoach 1.8.1 · Gestionale', style: TextStyle(color: BC.disabled, fontSize: 12))),
             ]),
           ),
         ],
