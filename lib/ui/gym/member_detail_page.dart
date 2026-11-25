@@ -85,8 +85,8 @@ class _MemberDetailPageState extends State<MemberDetailPage> {
             const SizedBox(height: 6),
             Text(
               m.linkedUid.isNotEmpty
-                  ? 'Collegata all\'app BeCoach dell'iscritto.'
-                  : 'L'iscritto può inserire questo codice nell\'app BeCoach (Profilo → Tessera palestra) e avere il QR sul telefono.',
+                  ? 'Collegata all\'app BeCoach dell\'iscritto.'
+                  : 'L\'iscritto può inserire questo codice nell\'app BeCoach (Profilo → Tessera palestra) e avere il QR sul telefono.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: BC.muted, height: 1.4),
             ),
