@@ -50,21 +50,6 @@ class ProfilePage extends StatelessWidget {
             _InviteCodePanel(me: me),
             const SectionLabel('La tua attività'),
             _CoachForm(key: ValueKey('cf-${me.uid}'), me: me),
-            const SectionLabel('Gestionale palestra'),
-            Panel(
-              onTap: () => Db.updateUser(me.uid, {'gymMode': true}),
-              child: const Row(children: [
-                Icon(Icons.storefront_outlined, color: BC.steel),
-                SizedBox(width: 14),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Apri il gestionale', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
-                    Text('Iscritti, abbonamenti, certificati, ingressi e cassa', style: TextStyle(fontSize: 13, color: BC.muted)),
-                  ]),
-                ),
-                Icon(Icons.chevron_right, color: BC.disabled),
-              ]),
-            ),
             if (!kIsWeb) ...[
               const SectionLabel('Collegamenti'),
               _GoogleCalendarPanel(me: me),
@@ -384,7 +369,7 @@ class _DevToolsState extends State<_DevTools> {
             behavior: HitTestBehavior.opaque,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text('BeCoach 2.0', style: TextStyle(color: BC.disabled, fontSize: 12)),
+              child: Text('BeCoach 2.1', style: TextStyle(color: BC.disabled, fontSize: 12)),
             ),
           ),
         ),
@@ -417,14 +402,6 @@ class _DevToolsState extends State<_DevTools> {
                           ),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: Text(me.coachMode ? 'Passa ad allenato' : 'Passa a coach'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _run(() => Db.updateUser(me.uid, {'gymMode': true}), 'Gestionale palestra'),
-                  icon: const Icon(Icons.storefront_outlined, size: 18),
-                  label: const Text('Apri gestionale palestra'),
                 ),
                 if (me.hasCoach) ...[
                   const SizedBox(height: 8),

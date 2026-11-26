@@ -6,7 +6,6 @@ import '../../models.dart';
 import '../../notifications.dart';
 import '../../theme.dart';
 import '../common/widgets.dart';
-import '../gym/courses_page.dart' show lessonDay;
 import '../gym/gym_widgets.dart';
 
 /// Corsi della palestra nell'app dell'iscritto: prenota e annulla.
@@ -142,4 +141,12 @@ class _GymCoursesPageState extends State<GymCoursesPage> {
       ]),
     );
   }
+}
+
+String lessonDay(DateTime d) {
+  final today = dayOnly(DateTime.now());
+  final dd = dayOnly(d);
+  if (dd == today) return 'Oggi';
+  if (dd == today.add(const Duration(days: 1))) return 'Domani';
+  return '${weekdayNames[d.weekday - 1]} ${d.day}/${d.month}';
 }
